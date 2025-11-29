@@ -1,6 +1,7 @@
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy import create_engine
 from MVC.model.model import Base
+import os
 
 DATABASE_URL = 'sqlite:///gestao_de_estoque.db'
 
@@ -13,5 +14,6 @@ def get_session():
         yield session
     finally:
         session.close()
+if not os.path.exists('gestao_de_estoque.db'):
+    Base.metadata.create_all(engine)
 
-Base.metadata.create_all(engine)

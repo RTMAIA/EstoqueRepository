@@ -23,13 +23,11 @@ class Service():
                 if i in param:
                     if not len(kwargs[i]) >= 3:
                         raise ValueError(f'O campo "{i}" Deve maior ou igual a 3.')
-                
-            sku = (kwargs['nome'][0:3] + '-' + kwargs['marca'][0:3] + '-' + kwargs['id_categoria'][0:3]).upper()
-            obj = self.session.scalar(select(Produtos).where(Produtos.sku.like(f'{sku}%')).order_by(desc(Produtos.sku)))
+            sku = (kwargs['nome'][0:3] + '-' + kwargs['marca'][0:3] + '-' + kwargs['id_categoria'][0:3] + '-' + variacao).upper()
+            obj = self.session.scalar(select(Produtos).where(Produtos.sku.like(f'{sku[0:11]}%')).order_by(desc(Produtos.sku)))
             if not obj:
                 return sku
             sku = f'{obj.sku[0:12]}{obj.sku[12:13]}{int(obj.sku[13:15]) + 1:02d}'
-            print(sku)
             return sku
 
     def exists_categoria(self,nome):

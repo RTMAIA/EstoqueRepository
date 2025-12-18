@@ -5,6 +5,12 @@ from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 class Base(DeclarativeBase):
     pass
 
+class Categorias(Base):
+    __tablename__ = 'categorias'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nome: Mapped[str] = mapped_column(String(50))
+
 class Produtos(Base):
     __tablename__ = 'produtos'
 
@@ -17,32 +23,14 @@ class Produtos(Base):
 
     categoria: Mapped['Categorias'] = relationship('Categorias')
 
-    def __init__(self, id_categoria, marca, nome, valor_unitario, session):
+    def __init__(self, id_categoria,sku, marca, nome, valor_unitario):
         self.id_categoria = id_categoria
-        self.sku = self.gerar_sku(session)
+        self.sku = sku
         self.marca = marca
         self.nome = nome
         self.valor_unitario = valor_unitario
        
-
-    def gerar_sku(self,session):
-        numeracao = 1
-        sku = f'{self.marca[:3]}-{self.nome[:3]}'.upper()
-        obj = session.execute(select(Produtos).where(Produtos.sku == sku).order_by(Produtos.sku.desc())).scalar()
-        if not obj:
-            sku = f'{self.marca[:3]}-{self.nome[:3]}-{numeracao:03}'.upper()
-        else:
-            numeracao = int(obj.sku[8:]) + 1
-            sku = f'{self.marca[:3]}-{self.nome[:3]}-{numeracao:03}'.upper()
-        return sku.upper()
             
-
-class Categorias(Base):
-    __tablename__ = 'categorias'
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    nome: Mapped[str] = mapped_column(String(50))
-
 class Estoque(Base):
     __tablename__ = 'estoque'
 

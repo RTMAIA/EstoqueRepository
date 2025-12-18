@@ -5,7 +5,7 @@ import re
 
 
 class ProdutoValidation(BaseModel):
-    id_categorta: int
+    id_categoria: int
     sku: str = Field(pattern=r'^[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}')
     marca: str
     nome: str

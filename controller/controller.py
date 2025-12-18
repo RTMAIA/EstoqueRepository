@@ -1,21 +1,26 @@
-from model.repository.base_repository import BaseRepository
-from model.model import *
-from database.database import get_session
+from model.service.service import Service
+from model.service.service import repoProduto
 from model.validators.validators import *
+from database.database import get_session
 
-session = get_session()
-next_session = next(session)
+session = next(get_session())
 
-base = BaseRepository(next_session, Produtos)
 
 class ProdutosController():
-    def __init__(self, **kwargs):
-    #     self.kwargs = kwargs
-    #     if ProdutoValidation(**kwargs):
-    #         base.criar(**kwargs)
-        base.gerar_sku(**kwargs)
+    # Fazer o restante do crud para o controller
 
-class CategoriasControoler():
+    def criar_produto(self, **kwargs):
+        service = Service(session=session)
+        sku = service.gerar_sku(**kwargs)
+        id = service.exists_categoria(kwargs['id_categoria'])
+        kwargs['id_categoria'] = id
+        kwargs['sku'] = sku
+        if ProdutoValidation(**kwargs):
+            repoProduto.criar(**kwargs)
+                
+        
+
+class CategoriasControler():
     ...
 
 class EstoqueController():
@@ -24,4 +29,5 @@ class EstoqueController():
 class movimentacaoController():
     ...
 
-a = ProdutosController(produto='rafael', marca='maia', categoria='pessoa')
+a = ProdutosController()
+a.criar_produto(id_categoria='PESSOA', nome='rafael', marca='maia', valor_unitario=1)

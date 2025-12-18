@@ -24,19 +24,4 @@ class BaseRepository():
         if obj:
             self.session.delete(obj)
             self.session.commit()
-    
-    def gerar_sku(self, **kwargs) -> str:
-            variacao = 'N01'
-            # for i in kwargs:
-                # if not len(kwargs[i]) >= 3:
-                    # raise ValueError(f'O campo "{i}" Deve maior ou igual a 3.')
-                
-            sku = (kwargs['produto'][0:3] + '-' + kwargs['marca'][0:3] + '-' + kwargs['categoria'][0:3] + '-' + variacao).upper()
-            obj = self.session.scalar(select(self.model).where(self.model.sku == sku))
-            if not obj:
-                return sku
-            
-            sku = f'{sku[13:15] + 1}'.zfill(2)
-            print(sku)
-            
-            
+      

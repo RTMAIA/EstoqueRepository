@@ -12,11 +12,17 @@ class BaseRepository():
         return obj
     
     def buscar_todos(self):
-        obj = self.session.execute(select(self.model)).scalars().all()
+        obj = self.session.scalars(select(self.model)).all()
         return obj
     
     def buscar_por_id(self, id):
-        obj = self.session.execute(select(self.model).where(self.model.id == id).scalar_one_or_none())
+        obj = self.session.scalars(select(self.model).where(self.model.id == id)).all()
+        return obj
+    
+    def update(self, id, **kwargs):
+        obj = self.buscar_por_id(id)
+        self.session.add(obj)
+        self.commit()
         return obj
 
     def delete(self, id):

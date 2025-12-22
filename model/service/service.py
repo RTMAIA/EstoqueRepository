@@ -35,3 +35,24 @@ class Service():
         if obj:
             return obj.id
         raise NameError('Categoria não existe.')
+    
+    def _serializar(self, obj):
+            dados = [{'categoria':i.categoria.nome ,'nome': i.nome, 'marca': i.marca, 'sku': i.sku, 'valor_unitario': f'{i.valor_unitario:.2f}'} for i in obj]
+            return dados
+
+    def buscar_todos(self):
+        instancias = repoProduto.buscar_todos()
+        dados_serializados = self._serializar(instancias)
+        return dados_serializados
+    
+    def buscar_por_id(self, id):
+        if not isinstance(id, int):
+            raise TypeError('ID deve ser do tipo inteiro.')
+        instancia = repoProduto.buscar_por_id(id)
+        if not instancia:
+            raise IndexError('Digite um ID válido.')
+        dados_serializados = self._serializar(instancia)
+        return dados_serializados
+        
+    
+    

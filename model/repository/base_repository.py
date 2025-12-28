@@ -21,9 +21,12 @@ class BaseRepository():
     
     def update(self, id, **kwargs):
         obj = self.buscar_por_id(id)
-        self.session.add(obj)
-        self.commit()
+        for i in kwargs:
+            setattr(obj[0], i, kwargs[i])
+        self.session.add(obj[0])
+        self.session.commit()
         return obj
+
 
     def delete(self, id):
         obj = self.buscar_por_id(id)

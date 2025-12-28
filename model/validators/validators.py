@@ -7,12 +7,13 @@ import re
 class ProdutoValidation(BaseModel):
     id_categoria: int
     sku: str = Field(pattern=r'^[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}')
-    marca: str
-    nome: str
+    marca: str = Field(min_length=3, max_length=50)
+    nome: str = Field(min_length=3, max_length=50)
     valor_unitario: Decimal = Field(gt=0)
+    is_active: bool
 
 class CategoriaValidation(BaseModel):
-    nome: str
+    nome: str = Field(min_length=3, max_length=50)
 
 class EstoqueValidation(BaseModel):
     id_produto: int

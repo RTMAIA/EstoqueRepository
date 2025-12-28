@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, Column, ForeignKey, DateTime, func, DECIMAL, select
+from sqlalchemy import String, Integer, Column, ForeignKey, DateTime, func, DECIMAL, Boolean, select
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
 
@@ -20,15 +20,17 @@ class Produtos(Base):
     marca: Mapped[str] = mapped_column(String(15))
     nome: Mapped[str] = mapped_column(String(50))
     valor_unitario: Mapped[float] = mapped_column(DECIMAL)
+    is_active: Mapped[bool] = mapped_column(Boolean)
 
     categoria: Mapped['Categorias'] = relationship('Categorias')
 
-    def __init__(self, id_categoria,sku, marca, nome, valor_unitario):
+    def __init__(self, id_categoria,sku, marca, nome, valor_unitario, is_active):
         self.id_categoria = id_categoria
         self.sku = sku
         self.marca = marca
         self.nome = nome
         self.valor_unitario = valor_unitario
+        self.is_active = is_active
        
             
 class Estoque(Base):

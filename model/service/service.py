@@ -31,6 +31,7 @@ class GenericService():
     def criar(self, **kwargs):
             obj = self.repo.criar(**kwargs)
             return obj
+    
     def buscar_todos(self):
             obj = self.repo.buscar_todos()
             return obj
@@ -104,10 +105,18 @@ class ProdutoService(GenericService):
               return super().filtrar(campo=campo, valor=valor)
         
         def filtrar_por_categoria(self, categoria):
-            obj = session.scalars(select(Produtos).join(Produtos.categoria).where(Categorias.nome.like(f'{categoria}%'))).all()
+            obj = session.scalars(select(Produtos).join(Produtos.categoria).where(Categorias.nome.like(f'{categoria}%')).filter(Produtos.is_active == True)).all()
             return obj
-      
         
+        def filtrar_por_nome(self, nome):
+            obj = session.scalars(select(Produtos).where(Produtos.nome.like(f'{nome}%')).filter(Produtos.is_active == True)).all()
+            return obj
+        
+        def filtrar_por_sku(self, sku):
+              obj = session.scalars(select(Produtos).where(Produtos.sku.like(f'%{sku}%')).filter(Produtos.is_active == True)).all()
+              return obj
+        
+
 categoria_service = CategoriaService(repoCategoria)
 a = ProdutoService(repoProduto, categoria_service)
-print(a.filtrar('marca', 'mai'))
+print(a.filtrar_por_sku('raf-mai'))

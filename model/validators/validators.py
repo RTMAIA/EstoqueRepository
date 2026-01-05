@@ -18,7 +18,7 @@ class ProdutoUpdateValidation(BaseModel):
     id_categoria: int | None = None
     valor_unitario: Decimal | None = None
 
-    @field_validator("nome", "marca")
+    @field_validator("nome")
     @classmethod
     def valida_nome(cls, valor):
         if valor.isdigit():
@@ -39,7 +39,7 @@ class ProdutoUpdateValidation(BaseModel):
     @field_validator("valor_unitario")
     @classmethod
     def valida_valor_unitario(cls, valor):
-        if valor is not None and valor > 0:
+        if valor is not None and valor <= 0:
          raise ValueError('O Valor Unitario deve ser maior que 0.')    
         return valor
     

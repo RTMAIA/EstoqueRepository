@@ -128,12 +128,14 @@ class ProdutoService(GenericService):
             dados_validados = self._validate_update(**kwargs)
             obj = super().update(id, **dados_validados)
             dados_sku = {'nome': obj[0].nome, 'marca': obj[0].marca, 'id_categoria': obj[0].categoria.nome}
-            sku = self._gerar_sku(**dados_sku)
-            obj[0].sku = sku
-            repoProduto.session.add(obj[0])
-            repoProduto.session.commit()
+            dados_chave = set(dados_validados)
+            if dados_chave.intersection(dados_sku.keys()):
+                sku = self._gerar_sku(**dados_sku)
+                obj[0].sku = sku
+                repoProduto.session.commit()
+                return obj
             return obj
         
 categoria_service = CategoriaService(repoCategoria)
 a = ProdutoService(repoProduto, categoria_service)
-print(a.update(1, marca='maia', nome='rafael'))
+print(a.update(1, valor_unitario=15))

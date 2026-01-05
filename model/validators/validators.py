@@ -1,10 +1,10 @@
-from pydantic import ValidationError, BaseModel, Field
+from pydantic import ValidationError, BaseModel, Field, field_validator
 from decimal import Decimal
 from datetime import date
 import re
 
 
-class ProdutoValidation(BaseModel):
+class ProdutoCreateValidation(BaseModel):
     id_categoria: int
     sku: str = Field(pattern=r'^[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}')
     marca: str = Field(min_length=3, max_length=50)
@@ -12,8 +12,40 @@ class ProdutoValidation(BaseModel):
     valor_unitario: Decimal = Field(gt=0)
     is_active: bool
 
+class ProdutoUpdateValidation(BaseModel):
+    nome: str | None = None
+    marca: str | None = None
+    id_categoria: int | None = None
+    valor_unitario: Decimal | None = None
+
+    @field_validator("nome", "marca")
+    @classmethod
+    def valida_nome(cls, valor):
+        if valor.isdigit():
+            raise ValueError('Nome não pode conter apenas números.')
+        if valor is not None and len(valor) < 3 or len(valor) > 50:
+            raise ValueError('O nome deve ter pelos menos 3 caracteres ou menos de 50 caracteres.')
+        return valor
+    
+    @field_validator("marca")
+    @classmethod
+    def valida_marca(cls, valor):
+        if valor.isdigit():
+            raise ValueError('Marca não pode conter apenas números.')
+        if valor is not None and len(valor) < 3 or len(valor) > 50:
+            raise ValueError('O nome deve ter pelos menos 3 caracteres ou menos de 50 caracteres.')
+        return valor
+        
+    @field_validator("valor_unitario")
+    @classmethod
+    def valida_valor_unitario(cls, valor):
+        if valor is not None and valor > 0:
+         raise ValueError('O Valor Unitario deve ser maior que 0.')    
+        return valor
+    
+
 class CategoriaValidation(BaseModel):
-    nome: str = Field(min_length=3, max_length=50)
+    id_categoria: str = Field(min_length=3, max_length=50)
 
 class EstoqueValidation(BaseModel):
     id_produto: int

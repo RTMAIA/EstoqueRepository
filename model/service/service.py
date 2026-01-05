@@ -11,7 +11,7 @@ repoCategoria = BaseRepository(session, Categorias)
 repoEstoque = BaseRepository(session, Estoque)
 repoMovimentacao = BaseRepository(session, Movimentacao)
 
-def serializar(obj):
+def converter_obj_dict(obj):
             dados = [{'id_categoria':i.categoria.nome ,'nome': i.nome, 'marca': i.marca, 'sku': i.sku, 'valor_unitario': f'{i.valor_unitario:.2f}'} for i in obj]
             return dados
 
@@ -19,8 +19,11 @@ class GenericService():
     def __init__(self, repo):
         self.repo = repo
 
-    def _validate(self, **kwargs):
-           return kwargs
+    def _validate_create(self, **kwargs):
+            return kwargs
+    
+    def _validate_update(self, **kwargs):
+            return kwargs
     
     def _validar_campos_permitidos(self, campos_permitidos, **kwargs):
             for i in kwargs:
@@ -49,7 +52,6 @@ class GenericService():
           return obj
     
     def filtrar(self, campo, valor):
-        
         obj = session.scalars(select(Produtos).where(getattr(Produtos, campo).like(f'{valor}%'))).all()
         return obj
     
@@ -59,7 +61,7 @@ class CategoriaService(GenericService):
         def __init__(self, repo):
               super().__init__(repo)
 
-        def existe_categoria(self, nome):
+        def existe_categoria_nome(self, nome):
               obj = session.scalar(select(Categorias).where(nome == Categorias.nome))
               if not obj:
                     raise ValueError(f'Categoria "{nome}" não existe.')
@@ -79,20 +81,29 @@ class ProdutoService(GenericService):
             sku = obj.sku[0:13] + str(f'{int(obj.sku[13:16]) + 1:02d}')
             return sku
                        
-        def _validate(self, **kwargs):
+        def _validate_create(self, **kwargs):
             if kwargs['id_categoria']:
                 if CategoriaValidation(**kwargs):
-                    id = self.categoria_service.existe_categoria(nome=kwargs['id_categoria'])
+                    id = self.categoria_service.existe_categoria_nome(nome=kwargs['id_categoria'])
                     sku = self._gerar_sku(**kwargs)
                     kwargs['sku'] = sku
                     kwargs['id_categoria'] = id
                     kwargs['is_active'] = True
-            if ProdutoValidation(**kwargs):
+            if ProdutoCreateValidation(**kwargs):
                     return kwargs
             
+        def _validate_update(self, **kwargs):
+            if 'id_categoria' in kwargs:
+                if CategoriaValidation(**kwargs):
+                    categoria = kwargs['id_categoria']
+                    id = self.categoria_service.existe_categoria_nome(nome=kwargs['id_categoria'])
+                    kwargs['id_categoria'] = id
+            if ProdutoUpdateValidation(**kwargs):
+                return kwargs
+    
         def criar(self, **kwargs):
                 dados = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
-                dados = self._validate(**dados)
+                dados = self._validate_create(**dados)
                 return super().criar(**dados)
 
         def buscar_todos(self):
@@ -101,9 +112,6 @@ class ProdutoService(GenericService):
         def buscar_por_id(self, id):
               return super().buscar_por_id(id)
 
-        def filtrar(self, campo, valor):
-              return super().filtrar(campo=campo, valor=valor)
-        
         def filtrar_por_categoria(self, categoria):
             obj = session.scalars(select(Produtos).join(Produtos.categoria).where(Categorias.nome.like(f'{categoria}%')).filter(Produtos.is_active == True)).all()
             return obj
@@ -116,7 +124,16 @@ class ProdutoService(GenericService):
               obj = session.scalars(select(Produtos).where(Produtos.sku.like(f'%{sku}%')).filter(Produtos.is_active == True)).all()
               return obj
         
-
+        def update(self, id, **kwargs):
+            dados_validados = self._validate_update(**kwargs)
+            obj = super().update(id, **dados_validados)
+            dados_sku = {'nome': obj[0].nome, 'marca': obj[0].marca, 'id_categoria': obj[0].categoria.nome}
+            sku = self._gerar_sku(**dados_sku)
+            obj[0].sku = sku
+            repoProduto.session.add(obj[0])
+            repoProduto.session.commit()
+            return obj
+        
 categoria_service = CategoriaService(repoCategoria)
 a = ProdutoService(repoProduto, categoria_service)
-print(a.filtrar_por_sku('raf-mai'))
+print(a.update(1, marca='maia', nome='rafael'))

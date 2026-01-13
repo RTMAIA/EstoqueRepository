@@ -1,4 +1,4 @@
-from pydantic import ValidationError, BaseModel, Field, field_validator
+from pydantic import ValidationError, BaseModel, Field, field_validator, ValidationInfo
 from decimal import Decimal
 from datetime import date
 import re
@@ -18,22 +18,15 @@ class ProdutoUpdateValidation(BaseModel):
     id_categoria: int | None = None
     valor_unitario: Decimal | None = None
 
-    @field_validator("nome")
+    @field_validator("nome", "marca")
     @classmethod
-    def valida_nome(cls, valor):
+    def valida_nome(cls, valor, info: ValidationInfo):
+        if valor is None:
+            raise ValueError(f'{info.field_name} não pode ser vazio.')
         if valor.isdigit():
-            raise ValueError('Nome não pode conter apenas números.')
-        if valor is not None and len(valor) < 3 or len(valor) > 50:
-            raise ValueError('O nome deve ter pelos menos 3 caracteres ou menos de 50 caracteres.')
-        return valor
-    
-    @field_validator("marca")
-    @classmethod
-    def valida_marca(cls, valor):
-        if valor.isdigit():
-            raise ValueError('Marca não pode conter apenas números.')
-        if valor is not None and len(valor) < 3 or len(valor) > 50:
-            raise ValueError('O nome deve ter pelos menos 3 caracteres ou menos de 50 caracteres.')
+            raise ValueError(f'{info.field_name} não pode conter apenas números.')
+        if valor is not None and (len(valor) < 3 or len(valor) > 50):
+            raise ValueError(f'O {info.field_name} deve ter pelos menos 3 caracteres ou menos de 50 caracteres.')
         return valor
         
     @field_validator("valor_unitario")
@@ -45,7 +38,7 @@ class ProdutoUpdateValidation(BaseModel):
     
 
 class CategoriaValidation(BaseModel):
-    id_categoria: str = Field(min_length=3, max_length=50)
+    nome: str = Field(min_length=3, max_length=50)
 
 class EstoqueValidation(BaseModel):
     id_produto: int

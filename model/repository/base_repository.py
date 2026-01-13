@@ -31,6 +31,6 @@ class BaseRepository():
     def delete(self, id):
         obj = self.buscar_por_id(id)
         if obj:
-            self.session.delete(obj)
+            self.session.delete(obj[0])
             self.session.commit()
       

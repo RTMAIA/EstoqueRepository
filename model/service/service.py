@@ -57,12 +57,18 @@ class GenericService():
     
 class CategoriaService(GenericService):
         def __init__(self, repo):
+              self.campos_permitidos = ['nome']
               super().__init__(repo)
-
-        def criar(self, **kwargs):
+        
+        def _validate_create(self, **kwargs):
             if CategoriaValidation(**kwargs):
                 if self.existe_categoria(kwargs['nome']):
-                    return super().criar(**kwargs)
+                    return super()._validate_create(**kwargs)
+
+        def criar(self, **kwargs):
+            dados = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
+            dados = self._validate_create(**dados)
+            return super().criar(**kwargs)
                 
         def buscar_por_id(self, id):
             return super().buscar_por_id(id)
@@ -106,7 +112,7 @@ class ProdutoService(GenericService):
             super().__init__(repo_produto)
 
         def _gerar_sku(self, **kwargs):
-            sku = f'{kwargs['nome'][0:3]}-{kwargs['marca'][0:3]}-{kwargs['id_categoria'][0:3]}-N01'.upper()
+            sku = f'{kwargs['nome'][0:3]}-{kwargs['marca'][0:3]}-{kwargs['categoria'][0:3]}-N01'.upper()
             obj = session.scalars(select(Produtos).where(Produtos.sku.like(f'{sku[0:11]}%')).order_by(desc(Produtos.sku))).first()
             if not obj:
                 return (sku)
@@ -185,14 +191,101 @@ class ProdutoService(GenericService):
             session.commit()
             return f'Produto {obj[0].nome} Apagado com sucesso.'
 
+class EstoqueService(GenericService):
+    def __init__(self, repo, produto_service, movimentacao_service):
+        self.campos_permitidos = ['id_produto', 'quantidade', 'estoque_minimo']
+        self.produto_service = produto_service
+        self.movimentacao_service = movimentacao_service
+        super().__init__(repo)
+
+    def _validate_create(self, **kwargs):
+        if EstoqueValidation(**kwargs):
+            id_estoque = self.buscar_estoque_por_id_produto(id_produto=kwargs['id_produto'])
+            _ = self.produto_service.buscar_por_id(id=id_estoque)
+            return super()._validate_create(**kwargs)
+        
+    def criar(self, **kwargs):
+        obj = Estoque(**kwargs)
+        session.add(obj)
+        session.flush()
+        return obj
+
+    def adicionar_produto_estoque(self, **kwargs):
+        try:
+            _ = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
+            dados_validados = self._validate_create(**kwargs)
+            obj_estoque = self.criar(**dados_validados)
+            payload = self.movimentacao_service.payload_registro(tipo_movimentacao='ENTRADA', origem='SALDO_INICIAL', obj_estoque=obj_estoque)
+            _ = self.movimentacao_service.criar(**payload)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise ValueError(f'erro: {e}')
+
+    def ajustar_produto_estoque(self, id, **kwargs):
+        try:
+            if EstoqueValidation(**kwargs):
+                _ = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
+                obj_estoque = self.buscar_por_id(id)
+                for i in kwargs:
+                    setattr(obj_estoque, i, kwargs[i])
+                if 'quantidade' in kwargs:
+                    quantidade_anterior = obj_estoque.quantidade
+                    diferenca = obj_estoque.quantidade - quantidade_anterior
+                    if diferenca > 0:
+                        tipo_movimentacao = 'ENTRADA'
+                    if diferenca < 0:
+                        tipo_movimentacao = 'SAIDA'
+                    payload = self.movimentacao_service.payload_registro(tipo_movimentacao=tipo_movimentacao, origem='AJUSTE',quantidade=abs(diferenca), obj_estoque=obj_estoque)
+                    self.movimentacao_service.criar(**payload)
+                session.commit()
+        except Exception as e:
+             raise ValueError(f'erro: {e}')      
+                
+    def buscar_por_id(self, id):
+        obj = session.scalar(select(Estoque).where(id == Estoque.id))
+        if not obj:
+            raise ValueError('O produto não existe no estoque.')
+        return obj
+
+    def buscar_estoque_por_id_produto(self, id_produto):  
+        obj = session.scalar(select(Estoque).where(id_produto == Estoque.id_produto))
+        if obj:
+            raise ValueError('O produto já existe no estoque.')
+        return id_produto
+      
 class MovimentacaoService(GenericService):
     def __init__(self, repo):
         super().__init__(repo)
 
-    def criar(self, **kwargs):
-         return super().criar(**kwargs)
-    
-     
-mov = MovimentacaoService(repoMovimentacao)
-mov.criar(tipo_movimentacao='ENTRADA', id_produto=1, valor_unitario=12, quantidade=10, valor_total=1200)
+    def payload_registro(self, tipo_movimentacao, origem, quantidade, obj_estoque):
+        payload = {
+                 'tipo_movimentacao':tipo_movimentacao,
+                 'origem': origem,
+                 'id_produto': obj_estoque.id_produto,
+                 'nome': obj_estoque.produto.nome,
+                 'categoria': obj_estoque.produto.categoria.nome,
+                 'sku': obj_estoque.produto.sku,
+                 'valor_unitario': obj_estoque.produto.valor_unitario,
+                 'quantidade': quantidade,
+                 'valor_total': obj_estoque.produto.valor_unitario * obj_estoque.quantidade
+                 }
+        return payload
 
+    def criar(self, **kwargs):
+        obj = Movimentacao(**kwargs)
+        session.add(obj)
+    
+
+categoria_service = CategoriaService(repoCategoria)
+# categoria_service.criar(nome='pessoa')
+
+produto_service = ProdutoService(repoProduto, categoria_service)
+# produto_service.criar(nome='rafael', marca='maia', categoria='pessoa', valor_unitario=2.89)
+
+movimentacao_service = MovimentacaoService(repoMovimentacao)
+
+
+est = EstoqueService(repoEstoque, produto_service, movimentacao_service)
+# print(est.adicionar_produto_estoque(id_produto=7, quantidade=20, estoque_minimo=3))
+est.ajustar_produto_estoque(id=1, estoque_minimo=10)

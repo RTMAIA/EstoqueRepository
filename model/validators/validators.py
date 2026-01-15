@@ -20,7 +20,7 @@ class ProdutoUpdateValidation(BaseModel):
 
     @field_validator("nome", "marca")
     @classmethod
-    def valida_nome(cls, valor, info: ValidationInfo):
+    def valida_campo(cls, valor, info: ValidationInfo):
         if valor is None:
             raise ValueError(f'{info.field_name} não pode ser vazio.')
         if valor.isdigit():
@@ -41,9 +41,19 @@ class CategoriaValidation(BaseModel):
     nome: str = Field(min_length=3, max_length=50)
 
 class EstoqueValidation(BaseModel):
-    id_produto: int
-    quantidade: int = Field(gt=0)
-    estoque_minimo: int = Field(gt=0)
+    id_produto: int | None = None
+    quantidade: int | None = None
+    estoque_minimo: int | None = None
+
+    @field_validator('id_produto', 'quantidade', 'estoque_minimo')
+    @classmethod
+
+    def valida_campo(cls, valor, info: ValidationInfo):
+        if valor is not None and valor < 0:
+            raise ValueError(f'O campo {info.field_name} deve ser maior que zero.')
+        if not isinstance(valor, int):
+            raise ValueError(f'O campo {info.field_name} deve ser um inteiro.')
+        
 
 class MovimentacaoValidation(BaseModel):
     data: date

@@ -19,7 +19,7 @@ class Produtos(Base):
     sku: Mapped[str] = mapped_column(String(15), unique=True)
     marca: Mapped[str] = mapped_column(String(15))
     nome: Mapped[str] = mapped_column(String(50))
-    valor_unitario: Mapped[float] = mapped_column(DECIMAL)
+    valor_unitario: Mapped[float] = mapped_column(DECIMAL(10, 2))
     is_active: Mapped[bool] = mapped_column(Boolean)
 
     categoria: Mapped['Categorias'] = relationship('Categorias')
@@ -46,12 +46,16 @@ class Estoque(Base):
 class Movimentacao(Base):
     __tablename__ = 'movimentacao'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    data = Column(DateTime(timezone=True), server_default=func.now())
-    tipo_movimentacao = Column(String(7))
-    id_produto = Column(Integer, ForeignKey('estoque.id'))
-    valor_unitario = Column(DECIMAL)
-    quantidade = Column(Integer)
-    valor_total = Column(DECIMAL)
-    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    data: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    tipo_movimentacao: Mapped[str] = mapped_column(String(7))
+    origem: Mapped[str] = mapped_column(String(13))
+    id_produto: Mapped[int] = mapped_column(Integer, ForeignKey('estoque.id'))
+    nome: Mapped[str] = mapped_column(String(50))
+    categoria: Mapped[str] = mapped_column(String(50))
+    sku: Mapped[str] = mapped_column(String(15))
+    valor_unitario: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2))
+    quantidade: Mapped[int] = mapped_column(Integer)
+    valor_total: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
+
     produto: Mapped['Estoque'] = relationship('Estoque')

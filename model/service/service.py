@@ -1,4 +1,4 @@
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, and_
 from model.repository.base_repository import BaseRepository
 from model.model import *
 from database.database import get_session
@@ -51,8 +51,8 @@ class GenericService():
           obj = self.repo.delete(id)
           return obj
     
-    def filtrar(self, campo, valor):
-        obj = session.scalars(select(Produtos).where(getattr(Produtos, campo).like(f'{valor}%'))).all()
+    def filtrar(self, model, campo, valor):
+        obj = session.scalars(select(model).where(getattr(model, campo).like(f'{valor}%'))).all()
         return obj
     
 class CategoriaService(GenericService):
@@ -200,16 +200,39 @@ class EstoqueService(GenericService):
 
     def _validate_create(self, **kwargs):
         if EstoqueValidation(**kwargs):
-            id_estoque = self.buscar_estoque_por_id_produto(id_produto=kwargs['id_produto'])
+            id_estoque = self._buscar_estoque_por_id_produto(id_produto=kwargs['id_produto'])
             _ = self.produto_service.buscar_por_id(id=id_estoque)
             return super()._validate_create(**kwargs)
-        
+
+    def _atualizar_produto_e_registrar(self, id, origem, **kwargs):
+        try:
+            if EstoqueValidation(**kwargs):
+                _ = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
+                obj_estoque = self.buscar_por_id(id)
+                for i in kwargs:
+                    quantidade_anterior = obj_estoque.quantidade
+                    setattr(obj_estoque, i, kwargs[i])
+                if 'quantidade' in kwargs:
+                    dados_payload = self.movimentacao_service.retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.quantidade)
+                    payload = self.movimentacao_service.payload_registro(tipo_movimentacao=dados_payload['tipo_movimentacao'], origem=origem,quantidade=dados_payload['diferenca'], obj_estoque=obj_estoque)
+                    self.movimentacao_service.criar(**payload)
+                session.commit()
+        except Exception as e:
+             session.rollback()
+             raise ValueError(f'erro: {e}')      
+                
+    def _buscar_estoque_por_id_produto(self, id_produto):  
+        obj = session.scalar(select(Estoque).where(id_produto == Estoque.id_produto))
+        if obj:
+            raise ValueError('O produto já existe no estoque.')
+        return id_produto
+
     def criar(self, **kwargs):
         obj = Estoque(**kwargs)
         session.add(obj)
         session.flush()
         return obj
-
+    
     def adicionar_produto_estoque(self, **kwargs):
         try:
             _ = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
@@ -222,38 +245,39 @@ class EstoqueService(GenericService):
             session.rollback()
             raise ValueError(f'erro: {e}')
 
-    def ajustar_produto_estoque(self, id, **kwargs):
-        try:
-            if EstoqueValidation(**kwargs):
-                _ = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
-                obj_estoque = self.buscar_por_id(id)
-                for i in kwargs:
-                    setattr(obj_estoque, i, kwargs[i])
-                if 'quantidade' in kwargs:
-                    quantidade_anterior = obj_estoque.quantidade
-                    diferenca = obj_estoque.quantidade - quantidade_anterior
-                    if diferenca > 0:
-                        tipo_movimentacao = 'ENTRADA'
-                    if diferenca < 0:
-                        tipo_movimentacao = 'SAIDA'
-                    payload = self.movimentacao_service.payload_registro(tipo_movimentacao=tipo_movimentacao, origem='AJUSTE',quantidade=abs(diferenca), obj_estoque=obj_estoque)
-                    self.movimentacao_service.criar(**payload)
-                session.commit()
-        except Exception as e:
-             raise ValueError(f'erro: {e}')      
-                
+    def ajustar_produto(self, id, **kwargs):
+        AJUSTE = 'AJUSTE'
+        self._atualizar_produto_e_registrar(id=id, origem=AJUSTE, **kwargs)
+    
+    def inventario(self, id, **kwargs):
+        INVENTARIO = 'INVENTARIO'
+        self._atualizar_produto_e_registrar(id=id, origem=INVENTARIO, **kwargs)
+
     def buscar_por_id(self, id):
         obj = session.scalar(select(Estoque).where(id == Estoque.id))
         if not obj:
             raise ValueError('O produto não existe no estoque.')
         return obj
 
-    def buscar_estoque_por_id_produto(self, id_produto):  
-        obj = session.scalar(select(Estoque).where(id_produto == Estoque.id_produto))
-        if obj:
-            raise ValueError('O produto já existe no estoque.')
-        return id_produto
+    def buscar_todos(self):
+         return super().buscar_todos()
       
+    def filtrar_por_nome(self, **kwargs):
+        obj = session.scalars(select(Estoque).join(Estoque.produto).where(Produtos.nome.like(f'{kwargs['nome']}%'))).all()
+        return obj
+    
+    def filtrar_por_categoria(self, **kwargs):
+        obj = session.scalars(select(Estoque).join(Estoque.produto).where(and_(Produtos.categoria.has(nome=kwargs['nome']),Categorias.nome.like(f'{kwargs['nome']}%')))).all()
+        return 
+    
+    def filtrar_por_valor_unitario(self, **kwargs):
+        obj = session.scalars(select(Estoque).join(Estoque.produto).where(kwargs['valor_unitario'] == Produtos.valor_unitario)).all()
+        return obj
+    
+    def filtrar_por_sku(self, **kwargs):
+        obj = session.scalars(select(Estoque).join(Estoque.produto).where(Produtos.sku.like(f'{kwargs['sku']}%'))).all()
+        return obj
+
 class MovimentacaoService(GenericService):
     def __init__(self, repo):
         super().__init__(repo)
@@ -272,6 +296,16 @@ class MovimentacaoService(GenericService):
                  }
         return payload
 
+    def retorna_tipo_e_quantidade(self, quantidade_anterior, quantidade_atual):
+        diferenca = quantidade_atual - quantidade_anterior
+        if diferenca > 0:
+            tipo_movimentacao = 'ENTRADA'
+        if diferenca < 0:
+            tipo_movimentacao = 'SAIDA'
+        if diferenca == 0:
+             raise ValueError('A quantidade informada não pode ser igual a quantidade atual do estoque.')
+        return {'tipo_movimentacao': tipo_movimentacao, 'diferenca': abs(diferenca)}
+
     def criar(self, **kwargs):
         obj = Movimentacao(**kwargs)
         session.add(obj)
@@ -288,4 +322,4 @@ movimentacao_service = MovimentacaoService(repoMovimentacao)
 
 est = EstoqueService(repoEstoque, produto_service, movimentacao_service)
 # print(est.adicionar_produto_estoque(id_produto=7, quantidade=20, estoque_minimo=3))
-est.ajustar_produto_estoque(id=1, estoque_minimo=10)
+print(est.filtrar_por_sku(sku='raf'))

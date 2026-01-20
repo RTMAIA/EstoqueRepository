@@ -19,7 +19,7 @@ class Produtos(Base):
     sku: Mapped[str] = mapped_column(String(15), unique=True)
     marca: Mapped[str] = mapped_column(String(15))
     nome: Mapped[str] = mapped_column(String(50))
-    valor_unitario: Mapped[float] = mapped_column(DECIMAL(10, 2))
+    valor_unitario: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean)
 
     categoria: Mapped['Categorias'] = relationship('Categorias')
@@ -53,8 +53,9 @@ class Movimentacao(Base):
     id_produto: Mapped[int] = mapped_column(Integer, ForeignKey('estoque.id'))
     nome: Mapped[str] = mapped_column(String(50))
     categoria: Mapped[str] = mapped_column(String(50))
+    marca: Mapped[str] = mapped_column(String(50))
     sku: Mapped[str] = mapped_column(String(15))
-    valor_unitario: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2))
+    valor_unitario: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
     quantidade: Mapped[int] = mapped_column(Integer)
     valor_total: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
 

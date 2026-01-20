@@ -1,8 +1,11 @@
-from sqlalchemy import select, desc, and_
+from sqlalchemy import select, desc, and_, extract, or_, between , inspect
 from model.repository.base_repository import BaseRepository
 from model.model import *
 from database.database import get_session
 from model.validators.validators import *
+import pandas as pd
+from openpyxl.styles import Border, Side
+from openpyxl import load_workbook
 
 session = next(get_session())
 
@@ -11,9 +14,6 @@ repoCategoria = BaseRepository(session, Categorias)
 repoEstoque = BaseRepository(session, Estoque)
 repoMovimentacao = BaseRepository(session, Movimentacao)
 
-def converter_obj_dict(obj):
-            dados = [{'id_categoria':i.categoria.nome ,'nome': i.nome, 'marca': i.marca, 'sku': i.sku, 'valor_unitario': f'{i.valor_unitario:.2f}'} for i in obj]
-            return dados
 
 class GenericService():
     def __init__(self, repo):
@@ -168,6 +168,10 @@ class ProdutoService(GenericService):
               obj = session.scalars(select(Produtos).where(Produtos.sku.like(f'%{sku}%')).filter(Produtos.is_active == True)).all()
               return obj
         
+        def filtrar_por_marca(self, marca):
+             obj = session.scalars(select(Produtos).where(Produtos.marca.like(f'{marca}%')).filter(Produtos.is_active == True)).all()
+             return obj
+             
         def update(self, id, **kwargs):
             try:
                 dados_validados = self._validate_update(**kwargs)
@@ -213,8 +217,8 @@ class EstoqueService(GenericService):
                     quantidade_anterior = obj_estoque.quantidade
                     setattr(obj_estoque, i, kwargs[i])
                 if 'quantidade' in kwargs:
-                    dados_payload = self.movimentacao_service.retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.quantidade)
-                    payload = self.movimentacao_service.payload_registro(tipo_movimentacao=dados_payload['tipo_movimentacao'], origem=origem,quantidade=dados_payload['diferenca'], obj_estoque=obj_estoque)
+                    dados_payload = self.movimentacao_service._retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.quantidade)
+                    payload = self.movimentacao_service._payload_registro(tipo_movimentacao=dados_payload['tipo_movimentacao'], origem=origem,quantidade=dados_payload['diferenca'], obj_estoque=obj_estoque)
                     self.movimentacao_service.criar(**payload)
                 session.commit()
         except Exception as e:
@@ -238,7 +242,7 @@ class EstoqueService(GenericService):
             _ = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
             dados_validados = self._validate_create(**kwargs)
             obj_estoque = self.criar(**dados_validados)
-            payload = self.movimentacao_service.payload_registro(tipo_movimentacao='ENTRADA', origem='SALDO_INICIAL', obj_estoque=obj_estoque)
+            payload = self.movimentacao_service._payload_registro(tipo_movimentacao='ENTRADA', origem='SALDO_INICIAL', quantidade=kwargs['quantidade'], obj_estoque=obj_estoque)
             _ = self.movimentacao_service.criar(**payload)
             session.commit()
         except Exception as e:
@@ -268,8 +272,12 @@ class EstoqueService(GenericService):
     
     def filtrar_por_categoria(self, **kwargs):
         obj = session.scalars(select(Estoque).join(Estoque.produto).where(and_(Produtos.categoria.has(nome=kwargs['nome']),Categorias.nome.like(f'{kwargs['nome']}%')))).all()
-        return 
+        return obj
     
+    def filtrar_por_marca(self, marca):
+        obj = session.scalars(select(Estoque).join(Produtos).where(Produtos.marca.like(f'{marca}%'))).all()
+        return obj
+
     def filtrar_por_valor_unitario(self, **kwargs):
         obj = session.scalars(select(Estoque).join(Estoque.produto).where(kwargs['valor_unitario'] == Produtos.valor_unitario)).all()
         return obj
@@ -282,13 +290,14 @@ class MovimentacaoService(GenericService):
     def __init__(self, repo):
         super().__init__(repo)
 
-    def payload_registro(self, tipo_movimentacao, origem, quantidade, obj_estoque):
+    def _payload_registro(self, tipo_movimentacao, origem, quantidade, obj_estoque):
         payload = {
                  'tipo_movimentacao':tipo_movimentacao,
                  'origem': origem,
                  'id_produto': obj_estoque.id_produto,
                  'nome': obj_estoque.produto.nome,
                  'categoria': obj_estoque.produto.categoria.nome,
+                 'marca': obj_estoque.produto.marca,
                  'sku': obj_estoque.produto.sku,
                  'valor_unitario': obj_estoque.produto.valor_unitario,
                  'quantidade': quantidade,
@@ -296,7 +305,7 @@ class MovimentacaoService(GenericService):
                  }
         return payload
 
-    def retorna_tipo_e_quantidade(self, quantidade_anterior, quantidade_atual):
+    def _retorna_tipo_e_quantidade(self, quantidade_anterior, quantidade_atual):
         diferenca = quantidade_atual - quantidade_anterior
         if diferenca > 0:
             tipo_movimentacao = 'ENTRADA'
@@ -306,10 +315,129 @@ class MovimentacaoService(GenericService):
              raise ValueError('A quantidade informada não pode ser igual a quantidade atual do estoque.')
         return {'tipo_movimentacao': tipo_movimentacao, 'diferenca': abs(diferenca)}
 
+    def _filtrar_startwith(self, **kwargs):
+        for i in kwargs:
+            obj = session.scalars(select(Movimentacao).where(getattr(Movimentacao, i).like(f'{kwargs[i]}%'))).all()  
+        return obj
+         
+    def _query_caracteristicas(self, query_base, filtro_caracteristicas):
+        for chave in filtro_caracteristicas:
+                query_base = query_base.filter(filtro_caracteristicas[chave] == getattr(Movimentacao, chave))
+        return query_base
+    
+    def _query_datas(self, query_base, filtro_datas):
+        for chave in filtro_datas:
+            if chave == 'ano':
+               ano = 'year'
+               query_base = query_base.filter(extract(ano, Movimentacao.data) == filtro_datas[chave])
+            if chave == 'mes':
+               mes = 'month'
+               query_base = query_base.filter(extract(mes, Movimentacao.data) == filtro_datas[chave])
+
+            if chave == 'dia':
+               dia = 'day'
+               query_base = query_base.filter(extract(dia, Movimentacao.data) == filtro_datas[chave])
+        return query_base
+
+    def _query_intervalo(self, query_base, filtro_intervalo):     
+        filtro_intervalo_lista = list(set(filtro_intervalo))
+        filtro_ativo = False
+
+        if set(['ano_inicial', 'ano_final']).issubset(filtro_intervalo_lista):
+            filtro_ativo = True
+            ano = 'year'
+            query_base = query_base.filter(extract(ano , Movimentacao.data).between(filtro_intervalo['ano_inicial'], filtro_intervalo['ano_final']))
+
+        if set(['mes_inicial', 'mes_final']).issubset(filtro_intervalo_lista):
+            filtro_ativo = True
+            mes = 'month'
+            query_base = query_base.filter(extract(mes , Movimentacao.data).between(filtro_intervalo['mes_inicial'], filtro_intervalo['mes_final']))
+
+        if set(['dia_inicial', 'dia_final']).issubset(filtro_intervalo_lista):
+            filtro_ativo = True
+            dia = 'day'
+            query_base = query_base.filter(extract(dia , Movimentacao.data).between(filtro_intervalo['dia_inicial'], filtro_intervalo['dia_final']))
+        if filtro_ativo == True:
+            return query_base
+        raise ValueError('O intervalo deve ter inicio e fim. Verifique o campo.')
+    
+    def _converte_obj_para_dict(self, obj):
+        obj_dict = {'data': [], 'tipo_movimentacao': [], 'origem': [],'nome': [], 'categoria': [],
+                     'marca': [],'sku': [], 'valor_unitario': [], 'quantidade':[], 'valor_total': []}
+        for chave in obj_dict:
+            for item in obj:
+                obj_dict[chave].append(getattr(item, chave))
+            
+        return obj_dict
+
     def criar(self, **kwargs):
         obj = Movimentacao(**kwargs)
         session.add(obj)
     
+    def buscar_todos(self):
+        return super().buscar_todos()
+    
+    def filtrar(self, **kwargs):
+        intervalos = ['ano_inicial', 'ano_final', 'mes_inicial', 'mes_final', 'dia_inicial', 'dia_final']
+        caracteristicas = ['nome', 'categoria', 'marca', 'sku', 'valor_unitario','tipo_movimentacao', 'origem']           
+        datas = ['ano', 'mes','dia']
+
+        campos = intervalos + caracteristicas + datas
+        campos_validados = self._validar_campos_permitidos(campos, **kwargs)
+
+        filtros = {'caracteristicas':{} , 'datas':{} , 'intervalos': {}}
+
+        for item in campos_validados:
+            if item in caracteristicas:
+                filtros['caracteristicas'].update({item: kwargs[item]})
+            if item in datas:
+                filtros['datas'].update({item: kwargs[item]})
+            if item in intervalos:
+                filtros['intervalos'].update({item: kwargs[item]})
+
+        query_base = select(Movimentacao)
+        if filtros['caracteristicas']:
+            query = self._query_caracteristicas(query_base, filtros['caracteristicas'])
+        if filtros['datas']:
+            query = self._query_datas(query_base, filtros['datas'])
+        if filtros['intervalos']:
+            query= self._query_intervalo(query_base, filtros['intervalos'])
+
+        return session.scalars(query).all()
+
+    def _bordas(self, nome_arquivo):
+        wb = load_workbook(nome_arquivo)
+        ws = wb.active
+
+        borda = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin'))
+        
+        for linhas in ws.iter_rows():
+            for celulas in linhas:
+                celulas.border = borda
+
+        wb.save(nome_arquivo)
+
+    def _gerar_nome_relatorio(self):
+        nome = 'Relatorio'
+        data = str(date.today())
+        print(data)
+
+        return [f'{nome}-{data}.xlsx', nome]
+
+    def gerar_excel(self, obj):
+        obj = self.buscar_todos()
+        obj_convertido = self._converte_obj_para_dict(obj)
+        df = pd.DataFrame(obj_convertido)
+        nome_relatorio = self._gerar_nome_relatorio()
+        df.to_excel(f'relatorios/{nome_relatorio[0]}', index=False, sheet_name=nome_relatorio[1])
+        _ = self._bordas(f'relatorios/{nome_relatorio[0]}')
+
+
+        
 
 categoria_service = CategoriaService(repoCategoria)
 # categoria_service.criar(nome='pessoa')
@@ -318,8 +446,9 @@ produto_service = ProdutoService(repoProduto, categoria_service)
 # produto_service.criar(nome='rafael', marca='maia', categoria='pessoa', valor_unitario=2.89)
 
 movimentacao_service = MovimentacaoService(repoMovimentacao)
-
+# print(movimentacao_service.filtrar(ano='2027')) 
+movimentacao_service.gerar_excel()
 
 est = EstoqueService(repoEstoque, produto_service, movimentacao_service)
-# print(est.adicionar_produto_estoque(id_produto=7, quantidade=20, estoque_minimo=3))
-print(est.filtrar_por_sku(sku='raf'))
+# print(est.filtrar_por_marca('maia'))
+# print(est.ajustar_produto(id=1, quantidade=10))

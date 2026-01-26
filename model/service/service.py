@@ -88,7 +88,6 @@ class CategoriaService(GenericService):
             
         def delete(self, id):
             obj = self.buscar_por_id(id)
-            print(obj)
             if obj:
                  session.delete(obj[0])
                  session.commit()
@@ -126,12 +125,10 @@ class ProdutoService(GenericService):
                 if CategoriaValidation(**kwargs):
                     id = self.categoria_service.retornar_id(nome=kwargs['categoria'])
                     sku = self._gerar_sku(**kwargs)
-                    print(f'aqui é o dict antigo {kwargs}')
                     novo_dado = kwargs.pop('categoria')
                     kwargs['sku'] = sku
                     kwargs['id_categoria'] = id
                     kwargs['is_active'] = True
-                    print(f'aqui é o dict novo {kwargs}')
             if ProdutoCreateValidation(**kwargs):
                     return kwargs
             
@@ -409,7 +406,6 @@ class MovimentacaoService(GenericService):
 
         dados = session.scalars(query).all()
         resultado = ResultadoBusca(dados=dados, filtros=kwargs)
-        print(resultado.gerar_nome())
         return resultado
 
 class RelatorioService:
@@ -451,7 +447,7 @@ class ResultadoBusca:
     def gerar_nome(self):
         timestamp = int(datetime.now().timestamp())
         data = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
-        nome = f'Relatorio_{data}'
+        nome = f'relatorios/Relatorio_{data}'
 
         if not self.filtros:
             return f'{nome}_GERAL-{data}_{timestamp}.pdf'
@@ -465,20 +461,3 @@ class ResultadoBusca:
         if 'dia_inicial' in self.filtros and 'dia_final' in self.filtros:
             return f'{nome}_PERIODO-{self.filtros['dia_inicial']}-a-{self.filtros['dia_final']}_{timestamp}.pdf'
         
-# categoria_service = CategoriaService(repoCategoria)
-# categoria_service.criar(nome='pessoa')
-
-# produto_service = ProdutoService(repoProduto, categoria_service)
-# produto_service.criar(nome='rafael', marca='maia', categoria='pessoa', valor_unitario=2.89)
-
-# movimentacao_service = MovimentacaoService(repoMovimentacao,)
-# a = (movimentacao_service.filtrar(nome='rafael', marca='maia', ano_inicial='2026', ano_final='2027'))
-# a = movimentacao_service.buscar_todos()
-
-
-# relatorio_service = RelatorioService(movimentacao_service)
-# relatorio_service.gerar_relatorio_pdf(a)
-
-# est = EstoqueService(repoEstoque, produto_service, movimentacao_service)
-# print(est.filtrar_por_marca('maia'))
-# print(est.ajustar_produto(id=1, quantidade=10))

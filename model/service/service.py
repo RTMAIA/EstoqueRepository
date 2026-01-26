@@ -1,11 +1,13 @@
-from sqlalchemy import select, desc, and_, extract, or_, between , inspect
+from sqlalchemy import select, desc, and_, extract
 from model.repository.base_repository import BaseRepository
 from model.model import *
 from database.database import get_session
 from model.validators.validators import *
 import pandas as pd
-from openpyxl.styles import Border, Side
-from openpyxl import load_workbook
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from datetime import datetime
 
 session = next(get_session())
 
@@ -375,7 +377,9 @@ class MovimentacaoService(GenericService):
         session.add(obj)
     
     def buscar_todos(self):
-        return super().buscar_todos()
+        dados = super().buscar_todos()
+        resultado = ResultadoBusca(dados=dados)
+        return resultado
     
     def filtrar(self, **kwargs):
         intervalos = ['ano_inicial', 'ano_final', 'mes_inicial', 'mes_final', 'dia_inicial', 'dia_final']
@@ -403,52 +407,78 @@ class MovimentacaoService(GenericService):
         if filtros['intervalos']:
             query= self._query_intervalo(query_base, filtros['intervalos'])
 
-        return session.scalars(query).all()
+        dados = session.scalars(query).all()
+        resultado = ResultadoBusca(dados=dados, filtros=kwargs)
+        print(resultado.gerar_nome())
+        return resultado
 
-    def _bordas(self, nome_arquivo):
-        wb = load_workbook(nome_arquivo)
-        ws = wb.active
+class RelatorioService:
+    def __init__(self, movimentacao_service):
+        self.movimentacao_service = movimentacao_service
 
-        borda = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin'))
-        
-        for linhas in ws.iter_rows():
-            for celulas in linhas:
-                celulas.border = borda
-
-        wb.save(nome_arquivo)
-
-    def _gerar_nome_relatorio(self):
-        nome = 'Relatorio'
-        data = str(date.today())
-        print(data)
-
-        return [f'{nome}-{data}.xlsx', nome]
-
-    def gerar_excel(self, obj):
-        obj = self.buscar_todos()
-        obj_convertido = self._converte_obj_para_dict(obj)
+    def _dataframe_to_list(self, obj_convertido):
         df = pd.DataFrame(obj_convertido)
-        nome_relatorio = self._gerar_nome_relatorio()
-        df.to_excel(f'relatorios/{nome_relatorio[0]}', index=False, sheet_name=nome_relatorio[1])
-        _ = self._bordas(f'relatorios/{nome_relatorio[0]}')
+        df = df.astype(str)
+        tabela_dados = [df.columns.tolist()] + df.values.tolist()
+        for c, v in enumerate(tabela_dados[0]):
+            tabela_dados[0][c] = v.upper()  
+        return tabela_dados
+    
+    def _tabela_estilo(self,  tabela):
+        tabela.setStyle(TableStyle([('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                    ('FONTSIZE', (0, 0), (-1, -1), 5),]))
 
-
+    def gerar_relatorio_pdf(self, obj):
+        _ = ResultadoBusca(obj.dados, obj.filtros)
+        obj_conv = self.movimentacao_service._converte_obj_para_dict(obj.dados)
+        tabela_dados = self._dataframe_to_list(obj_conv)
+        nome = _.gerar_nome()
+        pdf = SimpleDocTemplate(nome, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=20, BottomMargin=20)
+        colWidths = (A4[0] - 15) / len(tabela_dados[0])
+        tabela = Table(tabela_dados, colWidths=colWidths)
+        _ = self._tabela_estilo(tabela)
         
+        pdf.build([tabela])
 
-categoria_service = CategoriaService(repoCategoria)
+class ResultadoBusca:
+    def __init__(self, dados, filtros=None):
+        self.dados = dados
+        self.filtros = filtros
+
+    def gerar_nome(self):
+        timestamp = int(datetime.now().timestamp())
+        data = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+        nome = f'Relatorio_{data}'
+
+        if not self.filtros:
+            return f'{nome}_GERAL-{data}_{timestamp}.pdf'
+        for i in self.filtros:
+            if i == 'nome' or i == 'categoria' or i == 'marca' or i == 'sku' or i == 'valor_unitario' or i == 'tipo_movimentacao' or i == 'origem':
+                nome += f'_{i.upper()}-' + str(self.filtros[i])
+        if 'ano_inicial' in self.filtros and 'ano_final' in self.filtros:
+            return f'{nome}_PERIODO-{self.filtros['ano_inicial']}-a-{self.filtros['ano_final']}_{timestamp}.pdf'
+        if 'mes_inicial' in self.filtros and 'mes_final' in self.filtros:
+            return f'{nome}_PERIODO-{self.filtros['mes_inicial']}-a-{self.filtros['mes_final']}_{timestamp}.pdf'
+        if 'dia_inicial' in self.filtros and 'dia_final' in self.filtros:
+            return f'{nome}_PERIODO-{self.filtros['dia_inicial']}-a-{self.filtros['dia_final']}_{timestamp}.pdf'
+        
+# categoria_service = CategoriaService(repoCategoria)
 # categoria_service.criar(nome='pessoa')
 
-produto_service = ProdutoService(repoProduto, categoria_service)
+# produto_service = ProdutoService(repoProduto, categoria_service)
 # produto_service.criar(nome='rafael', marca='maia', categoria='pessoa', valor_unitario=2.89)
 
-movimentacao_service = MovimentacaoService(repoMovimentacao)
-# print(movimentacao_service.filtrar(ano='2027')) 
-movimentacao_service.gerar_excel()
+# movimentacao_service = MovimentacaoService(repoMovimentacao,)
+# a = (movimentacao_service.filtrar(nome='rafael', marca='maia', ano_inicial='2026', ano_final='2027'))
+# a = movimentacao_service.buscar_todos()
 
-est = EstoqueService(repoEstoque, produto_service, movimentacao_service)
+
+# relatorio_service = RelatorioService(movimentacao_service)
+# relatorio_service.gerar_relatorio_pdf(a)
+
+# est = EstoqueService(repoEstoque, produto_service, movimentacao_service)
 # print(est.filtrar_por_marca('maia'))
 # print(est.ajustar_produto(id=1, quantidade=10))

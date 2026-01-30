@@ -1,20 +1,14 @@
 from sqlalchemy import select, desc, and_, extract
-from model.repository.base_repository import BaseRepository
 from model.model import *
-from database.database import get_session
 from model.validators.validators import *
 import pandas as pd
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
 from reportlab.lib import colors
 from datetime import datetime
-
-session = next(get_session())
-
-repoProduto = BaseRepository(session, Produtos)
-repoCategoria = BaseRepository(session, Categorias)
-repoEstoque = BaseRepository(session, Estoque)
-repoMovimentacao = BaseRepository(session, Movimentacao)
+from database.context import *
 
 
 class GenericService():
@@ -53,10 +47,18 @@ class GenericService():
           obj = self.repo.delete(id)
           return obj
     
-    def filtrar(self, model, campo, valor):
-        obj = session.scalars(select(model).where(getattr(model, campo).like(f'{valor}%'))).all()
-        return obj
-    
+    def filtrar(self, model, **kwargs):
+            campos_permitidos = ['nome', 'categoria', 'marca', 'sku', 'valor_unitario']
+            dados = self._validar_campos_permitidos(campos_permitidos, **kwargs)
+            obj = select(model).filter(Produtos.is_active == True)
+            for i in dados:
+                if 'categoria' == i:
+                    obj = obj.filter(Produtos.categoria.has(getattr(Categorias, 'nome').like(f'%{dados[i]}%')))
+                else:
+                    obj = obj.filter(getattr(model, i).like(f'%{dados[i]}%'))
+            obj = session.scalars(obj).all()
+            return obj
+         
 class CategoriaService(GenericService):
         def __init__(self, repo):
               self.campos_permitidos = ['nome']
@@ -72,13 +74,16 @@ class CategoriaService(GenericService):
             dados = self._validate_create(**dados)
             return super().criar(**kwargs)
                 
+        def buscar_todos(self):
+            return super().buscar_todos()
+
         def buscar_por_id(self, id):
             return super().buscar_por_id(id)
 
         def buscar_por_nome(self, nome):
              id = self.retornar_id(nome)
              obj = self.buscar_por_id(id)
-             return obj[0]
+             return obj
         
         def update(self, id, **kwargs):
             obj = session.scalar(select(Categorias).where(kwargs['nome'] == Categorias.nome))
@@ -147,7 +152,8 @@ class ProdutoService(GenericService):
                 return super().criar(**dados)
 
         def buscar_todos(self):
-              return super().buscar_todos()
+            obj = session.scalars(select(Produtos).filter(Produtos.is_active == True)).all()
+            return obj
         
         def buscar_por_id(self, id):
               obj = session.scalars(select(Produtos).where(id == Produtos.id).filter(Produtos.is_active == True)).all()
@@ -155,22 +161,10 @@ class ProdutoService(GenericService):
                    raise ValueError('O produto não existe ou está inativo.')
               return obj
 
-        def filtrar_por_categoria(self, categoria):
-            obj = session.scalars(select(Produtos).join(Produtos.categoria).where(Categorias.nome.like(f'{categoria}%')).filter(Produtos.is_active == True)).all()
+        def filtrar(self, **kwargs):
+            obj = super().filtrar(Produtos, **kwargs)
             return obj
-        
-        def filtrar_por_nome(self, nome):
-            obj = session.scalars(select(Produtos).where(Produtos.nome.like(f'{nome}%')).filter(Produtos.is_active == True)).all()
-            return obj
-        
-        def filtrar_por_sku(self, sku):
-              obj = session.scalars(select(Produtos).where(Produtos.sku.like(f'%{sku}%')).filter(Produtos.is_active == True)).all()
-              return obj
-        
-        def filtrar_por_marca(self, marca):
-             obj = session.scalars(select(Produtos).where(Produtos.marca.like(f'{marca}%')).filter(Produtos.is_active == True)).all()
-             return obj
-             
+
         def update(self, id, **kwargs):
             try:
                 dados_validados = self._validate_update(**kwargs)
@@ -218,7 +212,7 @@ class EstoqueService(GenericService):
                 if 'quantidade' in kwargs:
                     dados_payload = self.movimentacao_service._retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.quantidade)
                     payload = self.movimentacao_service._payload_registro(tipo_movimentacao=dados_payload['tipo_movimentacao'], origem=origem,quantidade=dados_payload['diferenca'], obj_estoque=obj_estoque)
-                    self.movimentacao_service.criar(**payload)
+                    self.movimentacao_service._criar(**payload)
                 session.commit()
         except Exception as e:
              session.rollback()
@@ -242,7 +236,7 @@ class EstoqueService(GenericService):
             dados_validados = self._validate_create(**kwargs)
             obj_estoque = self.criar(**dados_validados)
             payload = self.movimentacao_service._payload_registro(tipo_movimentacao='ENTRADA', origem='SALDO_INICIAL', quantidade=kwargs['quantidade'], obj_estoque=obj_estoque)
-            _ = self.movimentacao_service.criar(**payload)
+            _ = self.movimentacao_service._criar(**payload)
             session.commit()
         except Exception as e:
             session.rollback()
@@ -265,29 +259,22 @@ class EstoqueService(GenericService):
     def buscar_todos(self):
          return super().buscar_todos()
       
-    def filtrar_por_nome(self, **kwargs):
-        obj = session.scalars(select(Estoque).join(Estoque.produto).where(Produtos.nome.like(f'{kwargs['nome']}%'))).all()
-        return obj
-    
-    def filtrar_por_categoria(self, **kwargs):
-        obj = session.scalars(select(Estoque).join(Estoque.produto).where(and_(Produtos.categoria.has(nome=kwargs['nome']),Categorias.nome.like(f'{kwargs['nome']}%')))).all()
-        return obj
-    
-    def filtrar_por_marca(self, marca):
-        obj = session.scalars(select(Estoque).join(Produtos).where(Produtos.marca.like(f'{marca}%'))).all()
-        return obj
+    def filtrar(self, **kwargs):
+        campos_permitidos = ['nome', 'marca', 'categoria', 'sku', 'valor_unitario']
+        dados = self._validar_campos_permitidos(campos_permitidos, **kwargs)
+        obj = select(Estoque)
+        for i in dados:
+            if 'categoria' == i:
+                obj = obj.filter(Estoque.produto.has(Produtos.categoria.has(getattr(Categorias, 'nome').like(f'%{dados[i]}%'))))
+            else:
+                obj = obj.filter(Estoque.produto.has(getattr(Produtos, i).like(f'%{dados[i]}%')))
 
-    def filtrar_por_valor_unitario(self, **kwargs):
-        obj = session.scalars(select(Estoque).join(Estoque.produto).where(kwargs['valor_unitario'] == Produtos.valor_unitario)).all()
-        return obj
-    
-    def filtrar_por_sku(self, **kwargs):
-        obj = session.scalars(select(Estoque).join(Estoque.produto).where(Produtos.sku.like(f'{kwargs['sku']}%'))).all()
+        obj = session.scalars(obj).all()
         return obj
 
 class MovimentacaoService(GenericService):
     def __init__(self, repo):
-        super().__init__(repo)
+        self.repo = repo
 
     def _payload_registro(self, tipo_movimentacao, origem, quantidade, obj_estoque):
         payload = {
@@ -300,7 +287,7 @@ class MovimentacaoService(GenericService):
                  'sku': obj_estoque.produto.sku,
                  'valor_unitario': obj_estoque.produto.valor_unitario,
                  'quantidade': quantidade,
-                 'valor_total': obj_estoque.produto.valor_unitario * obj_estoque.quantidade
+                 'valor_total': obj_estoque.produto.valor_unitario * quantidade
                  }
         return payload
 
@@ -369,7 +356,7 @@ class MovimentacaoService(GenericService):
             
         return obj_dict
 
-    def criar(self, **kwargs):
+    def _criar(self, **kwargs):
         obj = Movimentacao(**kwargs)
         session.add(obj)
     
@@ -398,13 +385,13 @@ class MovimentacaoService(GenericService):
 
         query_base = select(Movimentacao)
         if filtros['caracteristicas']:
-            query = self._query_caracteristicas(query_base, filtros['caracteristicas'])
+            query_base = self._query_caracteristicas(query_base, filtros['caracteristicas'])
         if filtros['datas']:
-            query = self._query_datas(query_base, filtros['datas'])
+            query_base = self._query_datas(query_base, filtros['datas'])
         if filtros['intervalos']:
-            query= self._query_intervalo(query_base, filtros['intervalos'])
+            query_base = self._query_intervalo(query_base, filtros['intervalos'])
 
-        dados = session.scalars(query).all()
+        dados = session.scalars(query_base).all()
         resultado = ResultadoBusca(dados=dados, filtros=kwargs)
         return resultado
 
@@ -431,20 +418,27 @@ class RelatorioService:
         _ = ResultadoBusca(obj.dados, obj.filtros)
         obj_conv = self.movimentacao_service._converte_obj_para_dict(obj.dados)
         tabela_dados = self._dataframe_to_list(obj_conv)
-        nome = _.gerar_nome()
+        nome = _._gerar_nome()
         pdf = SimpleDocTemplate(nome, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=20, BottomMargin=20)
+        conteudo = []
+        style = getSampleStyleSheet()
+        titulo_style = style['Title']
+        titulo = Paragraph('Relatório de ENTRADA/SAIDA de produtos.', titulo_style)
+        conteudo.append(titulo)
+        conteudo.append(Spacer(1, 0.5 * inch))
         colWidths = (A4[0] - 15) / len(tabela_dados[0])
         tabela = Table(tabela_dados, colWidths=colWidths)
+        conteudo.append(tabela)
         _ = self._tabela_estilo(tabela)
         
-        pdf.build([tabela])
+        pdf.build(conteudo)
 
 class ResultadoBusca:
     def __init__(self, dados, filtros=None):
         self.dados = dados
         self.filtros = filtros
 
-    def gerar_nome(self):
+    def _gerar_nome(self):
         timestamp = int(datetime.now().timestamp())
         data = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
         nome = f'relatorios/Relatorio_{data}'
@@ -460,4 +454,3 @@ class ResultadoBusca:
             return f'{nome}_PERIODO-{self.filtros['mes_inicial']}-a-{self.filtros['mes_final']}_{timestamp}.pdf'
         if 'dia_inicial' in self.filtros and 'dia_final' in self.filtros:
             return f'{nome}_PERIODO-{self.filtros['dia_inicial']}-a-{self.filtros['dia_final']}_{timestamp}.pdf'
-        

@@ -8,7 +8,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from datetime import datetime
-from database.context import *
+from database.context.context import *
 
 
 class GenericService():
@@ -56,7 +56,7 @@ class GenericService():
                     obj = obj.filter(Produtos.categoria.has(getattr(Categorias, 'nome').like(f'%{dados[i]}%')))
                 else:
                     obj = obj.filter(getattr(model, i).like(f'%{dados[i]}%'))
-            obj = session.scalars(obj).all()
+            obj = self.repo.session.scalars(obj).all()
             return obj
          
 class CategoriaService(GenericService):
@@ -75,18 +75,20 @@ class CategoriaService(GenericService):
             return super().criar(**kwargs)
                 
         def buscar_todos(self):
-            return super().buscar_todos()
+            obj = super().buscar_todos()
+            return obj
 
         def buscar_por_id(self, id):
             return super().buscar_por_id(id)
 
-        def buscar_por_nome(self, nome):
-             id = self.retornar_id(nome)
+        def buscar_por_nome(self, **kwargs):
+             id = self.retornar_id(**kwargs)
              obj = self.buscar_por_id(id)
-             return obj
+             resultado = ResultadoBusca(dados=obj, filtros=kwargs)
+             return resultado
         
         def update(self, id, **kwargs):
-            obj = session.scalar(select(Categorias).where(kwargs['nome'] == Categorias.nome))
+            obj = self.repo.session.scalar(select(Categorias).where(kwargs['nome'] == Categorias.nome))
             if not obj:
                 return super().update(id, **kwargs)
             raise ValueError(f'Cateogria {kwargs['nome']} já existe.')
@@ -94,32 +96,33 @@ class CategoriaService(GenericService):
         def delete(self, id):
             obj = self.buscar_por_id(id)
             if obj:
-                 session.delete(obj[0])
-                 session.commit()
+                 self.repo.session.delete(obj[0])
+                 self.repo.session.commit()
                  return 'A categoria foi deletada.'
             raise ValueError(f'A categoria não existe.')
 
         def existe_categoria(self, nome):
-            obj = session.scalar(select(Categorias).where(nome == Categorias.nome))
+            obj = self.repo.session.scalar(select(Categorias).where(nome == Categorias.nome))
             if not obj:
                 return nome
             raise ValueError(f'A categoria {nome} já existe.')
 
-        def retornar_id(self, nome):
-            obj = session.scalar(select(Categorias).where(nome == Categorias.nome))
+        def retornar_id(self, **kwargs):
+            obj = self.repo.session.scalar(select(Categorias).where(kwargs['nome'] == Categorias.nome))
             if not obj:
-                raise ValueError(f'Categoria "{nome}" não existe.')
+                raise ValueError(f'Categoria "{kwargs['nome']}" não existe.')
             return obj.id
         
 class ProdutoService(GenericService):
         def __init__(self, repo_produto, categoria_service):
             self.campos_permitidos = ['nome', 'marca', 'categoria', 'valor_unitario']
             self.categoria_service = categoria_service
+            self.campos = ['NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO']
             super().__init__(repo_produto)
 
         def _gerar_sku(self, **kwargs):
             sku = f'{kwargs['nome'][0:3]}-{kwargs['marca'][0:3]}-{kwargs['categoria'][0:3]}-N01'.upper()
-            obj = session.scalars(select(Produtos).where(Produtos.sku.like(f'{sku[0:11]}%')).order_by(desc(Produtos.sku))).first()
+            obj = self.repo.session.scalars(select(Produtos).where(Produtos.sku.like(f'{sku[0:11]}%')).order_by(desc(Produtos.sku))).first()
             if not obj:
                 return (sku)
             sku = obj.sku[0:13] + str(f'{int(obj.sku[13:16]) + 1:02d}')
@@ -152,18 +155,20 @@ class ProdutoService(GenericService):
                 return super().criar(**dados)
 
         def buscar_todos(self):
-            obj = session.scalars(select(Produtos).filter(Produtos.is_active == True)).all()
-            return obj
+            obj = self.repo.session.scalars(select(Produtos).filter(Produtos.is_active == True)).all()
+            resultado = ResultadoBusca(dados=obj, campos=self.campos)
+            return resultado
         
         def buscar_por_id(self, id):
-              obj = session.scalars(select(Produtos).where(id == Produtos.id).filter(Produtos.is_active == True)).all()
+              obj = self.repo.session.scalars(select(Produtos).where(id == Produtos.id).filter(Produtos.is_active == True)).all()
               if not obj:
                    raise ValueError('O produto não existe ou está inativo.')
               return obj
 
         def filtrar(self, **kwargs):
             obj = super().filtrar(Produtos, **kwargs)
-            return obj
+            resultado = ResultadoBusca(dados=obj, filtros=kwargs)
+            return resultado
 
         def update(self, id, **kwargs):
             try:
@@ -176,16 +181,16 @@ class ProdutoService(GenericService):
                 if dados_chave.intersection(dados_validados.keys()):
                     sku = self._gerar_sku(**dados_sku)
                     obj[0].sku = sku
-                    session.commit()
+                    self.repo.session.commit()
                 return obj
             except Exception as e:
-                session.rollback()
+                self.repo.session.rollback()
                 raise Exception(f'Erro: {e}')
 
         def delete(self, id):
             obj = self.buscar_por_id(id)
             obj[0].is_active = False
-            session.commit()
+            self.repo.session.commit()
             return f'Produto {obj[0].nome} Apagado com sucesso.'
 
 class EstoqueService(GenericService):
@@ -193,6 +198,7 @@ class EstoqueService(GenericService):
         self.campos_permitidos = ['id_produto', 'quantidade', 'estoque_minimo']
         self.produto_service = produto_service
         self.movimentacao_service = movimentacao_service
+        self.campos = ['NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO', 'QUANTIDADE', 'ESTOQUE_MINIMO', 'VALOR_TOTAL']
         super().__init__(repo)
 
     def _validate_create(self, **kwargs):
@@ -213,21 +219,21 @@ class EstoqueService(GenericService):
                     dados_payload = self.movimentacao_service._retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.quantidade)
                     payload = self.movimentacao_service._payload_registro(tipo_movimentacao=dados_payload['tipo_movimentacao'], origem=origem,quantidade=dados_payload['diferenca'], obj_estoque=obj_estoque)
                     self.movimentacao_service._criar(**payload)
-                session.commit()
+                self.repo.session.commit()
         except Exception as e:
-             session.rollback()
+             self.repo.session.rollback()
              raise ValueError(f'erro: {e}')      
                 
     def _buscar_estoque_por_id_produto(self, id_produto):  
-        obj = session.scalar(select(Estoque).where(id_produto == Estoque.id_produto))
+        obj = self.repo.session.scalar(select(Estoque).where(id_produto == Estoque.id_produto))
         if obj:
             raise ValueError('O produto já existe no estoque.')
         return id_produto
 
     def criar(self, **kwargs):
         obj = Estoque(**kwargs)
-        session.add(obj)
-        session.flush()
+        self.repo.session.add(obj)
+        self.repo.session.flush()
         return obj
     
     def adicionar_produto_estoque(self, **kwargs):
@@ -236,10 +242,10 @@ class EstoqueService(GenericService):
             dados_validados = self._validate_create(**kwargs)
             obj_estoque = self.criar(**dados_validados)
             payload = self.movimentacao_service._payload_registro(tipo_movimentacao='ENTRADA', origem='SALDO_INICIAL', quantidade=kwargs['quantidade'], obj_estoque=obj_estoque)
-            _ = self.movimentacao_service._criar(**payload)
-            session.commit()
+            _ = self.movimentacao_service.criar(**payload)
+            self.repo.session.commit()
         except Exception as e:
-            session.rollback()
+            self.repo.session.rollback()
             raise ValueError(f'erro: {e}')
 
     def ajustar_produto(self, id, **kwargs):
@@ -251,16 +257,19 @@ class EstoqueService(GenericService):
         self._atualizar_produto_e_registrar(id=id, origem=INVENTARIO, **kwargs)
 
     def buscar_por_id(self, id):
-        obj = session.scalar(select(Estoque).where(id == Estoque.id))
+        obj = self.repo.session.scalar(select(Estoque).where(id == Estoque.id))
         if not obj:
             raise ValueError('O produto não existe no estoque.')
         return obj
 
     def buscar_todos(self):
-         return super().buscar_todos()
-      
+        obj = super().buscar_todos()
+        resultado = ResultadoBusca(obj, self.campos)
+        return resultado
+        
     def filtrar(self, **kwargs):
         campos_permitidos = ['nome', 'marca', 'categoria', 'sku', 'valor_unitario']
+        filtros = ['DATA', 'TIPO_MOVIMENTACAO', 'ORIGEM', 'NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO', 'QUANTIDADE', 'VALOR_TOTAL']
         dados = self._validar_campos_permitidos(campos_permitidos, **kwargs)
         obj = select(Estoque)
         for i in dados:
@@ -269,8 +278,9 @@ class EstoqueService(GenericService):
             else:
                 obj = obj.filter(Estoque.produto.has(getattr(Produtos, i).like(f'%{dados[i]}%')))
 
-        obj = session.scalars(obj).all()
-        return obj
+        obj = self.repo.session.scalars(obj).all()
+        resutlado = ResultadoBusca(dados=obj, campos=self.campos, filtros=filtros)
+        return resutlado
 
 class MovimentacaoService(GenericService):
     def __init__(self, repo):
@@ -303,7 +313,7 @@ class MovimentacaoService(GenericService):
 
     def _filtrar_startwith(self, **kwargs):
         for i in kwargs:
-            obj = session.scalars(select(Movimentacao).where(getattr(Movimentacao, i).like(f'{kwargs[i]}%'))).all()  
+            obj = self.repo.session.scalars(select(Movimentacao).where(getattr(Movimentacao, i).like(f'{kwargs[i]}%'))).all()  
         return obj
          
     def _query_caracteristicas(self, query_base, filtro_caracteristicas):
@@ -356,14 +366,13 @@ class MovimentacaoService(GenericService):
             
         return obj_dict
 
-    def _criar(self, **kwargs):
+    def criar(self, **kwargs):
         obj = Movimentacao(**kwargs)
-        session.add(obj)
+        self.repo.session.add(obj)
     
     def buscar_todos(self):
         dados = super().buscar_todos()
-        resultado = ResultadoBusca(dados=dados)
-        return resultado
+        return dados
     
     def filtrar(self, **kwargs):
         intervalos = ['ano_inicial', 'ano_final', 'mes_inicial', 'mes_final', 'dia_inicial', 'dia_final']
@@ -391,7 +400,7 @@ class MovimentacaoService(GenericService):
         if filtros['intervalos']:
             query_base = self._query_intervalo(query_base, filtros['intervalos'])
 
-        dados = session.scalars(query_base).all()
+        dados = self.repo.session.scalars(query_base).all()
         resultado = ResultadoBusca(dados=dados, filtros=kwargs)
         return resultado
 
@@ -401,7 +410,6 @@ class RelatorioService:
 
     def _dataframe_to_list(self, obj_convertido):
         df = pd.DataFrame(obj_convertido)
-        df = df.astype(str)
         tabela_dados = [df.columns.tolist()] + df.values.tolist()
         for c, v in enumerate(tabela_dados[0]):
             tabela_dados[0][c] = v.upper()  
@@ -434,9 +442,10 @@ class RelatorioService:
         pdf.build(conteudo)
 
 class ResultadoBusca:
-    def __init__(self, dados, filtros=None):
+    def __init__(self, dados, campos, filtros=None,):
         self.dados = dados
         self.filtros = filtros
+        self.campos = campos
 
     def _gerar_nome(self):
         timestamp = int(datetime.now().timestamp())

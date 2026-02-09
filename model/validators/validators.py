@@ -7,7 +7,7 @@ import re
 class ProdutoCreateValidation(BaseModel):
     id_categoria: int
     sku: str = Field(pattern=r'^[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}\-[a-zA-Z0-9]{3}')
-    marca: str = Field(min_length=3, max_length=50)
+    marca: str = Field(min_length=3, max_length=15)
     nome: str = Field(min_length=3, max_length=50)
     valor_unitario: Decimal = Field(gt=0)
     is_active: bool

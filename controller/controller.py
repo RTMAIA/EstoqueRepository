@@ -5,7 +5,8 @@ class CategoriasControler:
         self.categoria_services = categoria_service
 
     def _converter_obj(self, obj):
-        dados_convertidos = [(i.nome) for i in obj]
+        dados_convertidos = [[i.nome for i in obj.dados]]
+        dados_convertidos.append(obj.campos)
         return dados_convertidos
 
     def criar(self, **kwargs):
@@ -32,10 +33,11 @@ class ProdutosController:
         self.produto_service = produto_service
 
     def _converter_obj(self, obj):
-        dados_convertidos = [[i.nome, i.marca,
+        dados_convertidos = [[[i.nome, i.marca,
                               i.categoria.nome,
-                              i.sku, str(i.valor_unitario)] for i in obj]
+                              i.sku, str(i.valor_unitario)] for i in obj.dados]]
         
+        dados_convertidos.append(obj.campos)
         return dados_convertidos
 
     def criar(self, **kwargs):
@@ -62,10 +64,10 @@ class EstoqueController:
         self.estoque_service = estoque_service
 
     def _converter_obj(self, obj):
-        dados_convertidos = [[i.produto.nome, i.produto.marca,
-                              i.produto.categoria.nome, i.produto.sku,
-                              str(i.produto.valor_unitario)] for i in obj]
-        
+        dados_convertidos = [[[i.produto.nome,
+                              i.produto.categoria.nome, i.produto.marca, i.produto.sku,
+                              str(i.produto.valor_unitario), i.quantidade, i.estoque_minimo, str(i.produto.valor_unitario * i.quantidade)] for i in obj.dados]]
+        dados_convertidos.append(obj.campos)
         return dados_convertidos
 
     def adicionar_produto_estoque(self, **kwargs):
@@ -92,12 +94,12 @@ class movimentacaoController:
         self.movimentacao_service = movimentacao_service
 
     def _converter_obj(self, obj):
-        dados_convertidos = [[str(i.data), i.tipo_movimentacao,
+        dados_convertidos = [[[str(i.data), i.tipo_movimentacao,
                               i.origem, i.nome,
                               i.marca, i.categoria,
                               i.sku, str(i.valor_unitario),
-                              i.quantidade, str(i.valor_total)] for i in obj.dados]
-        
+                              i.quantidade, str(i.valor_total)] for i in obj.dados]]
+        dados_convertidos.append(obj.campos)
         return dados_convertidos
 
     def buscar_todos(self):

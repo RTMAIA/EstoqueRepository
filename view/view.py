@@ -43,7 +43,7 @@ class TelaPrincipal(QMainWindow):
 """
 
         self.barra_estoque = self.barra_menu('Estoque')
-        self.submenu = self.gerar_submenu(self.barra_estoque, ['Adicionar Produto', 'Atualizar Produto', 'Remover Produto', 'Buscar Todos'])
+        self.submenu = self.gerar_submenu(self.barra_estoque, ['Adicionar Produto', 'Atualizar Produto', 'Remover Produto'])
 
         self.barra_produto = self.barra_menu('Produto')
         self.submenu = self.gerar_submenu(self.barra_produto, ['Criar Produto', 'Atualizar Produto', 'Remover Produto', 'Buscar Todos'])
@@ -80,7 +80,7 @@ class TelaPrincipal(QMainWindow):
         self.campo_estoque_minimo = self.adicionar_bordas(self.entrada_estoque_minimo)
 
         #define botao
-        self.botao_estoque = self.definir_botao()
+        self.botao_estoque = self.definir_botao('PESQUISAR', self.filtrar)
 
         #adiciona o campo a grid
         self.grid = QGridLayout(self.frame_cima_fora)
@@ -237,13 +237,14 @@ class TelaPrincipal(QMainWindow):
           
     def navegar(self, setor, destino):
         if setor == 'Estoque':
-            if destino == 'Buscar Todos':
-                from view.view import TelaPrincipal
-                self.tela = TelaPrincipal()
+            if destino == 'Adicionar Produto':
+                from view.view import TelaAdicionarProdutoEstoque, TelaPrincipal
+                tela_principal = TelaPrincipal()
+                self.tela = TelaAdicionarProdutoEstoque(tela_principal)
                 self.tela.show()
 
-    def definir_botao(self):
-        botao_pesquisar = QPushButton('PESQUISAR')
+    def definir_botao(self, texto, funcao=None):
+        botao_pesquisar = QPushButton(texto)
         botao_pesquisar.setStyleSheet('''
                                         QPushButton {
                                             background-color: #BDBDBD; color: #585858; font-size: 15px;
@@ -256,19 +257,32 @@ class TelaPrincipal(QMainWindow):
         botao_pesquisar.setCursor(Qt.PointingHandCursor)
         botao_pesquisar.setMinimumHeight(40)
         botao_pesquisar.setMinimumWidth(200)
-        botao_pesquisar.clicked.connect(self.filtrar)
+        if funcao != None:
+            botao_pesquisar.clicked.connect(funcao)
         return botao_pesquisar
 
-
 class TelaAdicionarProdutoEstoque(QFrame):
-    def __init__(self):
+    def __init__(self, tela_principal):
+        self.tela_principal = tela_principal
         super().__init__()
-        self.setWindowTitle('Adicionar Produto - Estoque')
+        self.setWindowTitle('Adicionar Produto — Estoque')
 
         dados = produto_controller.buscar_todos()
         model = TableClass(dados)
 
         self.frame_botoes = QFrame()
+        
+        self.frame_botoes.setMaximumHeight(50)
+        self.frame_botoes.setStyleSheet('background-color: #D9D9D9;')
+
+        self.botao_adicionar = self.tela_principal.definir_botao('ADICIONAR PRODUTO')
+        self.botao_atualizar = self.tela_principal.definir_botao('ATUALIZAR PRODUTO')
+        self.botao_remover = self.tela_principal.definir_botao('REMOVER PRODUTO')
+
+        self.layout_botoes = QHBoxLayout(self.frame_botoes)
+        self.layout_botoes.addWidget(self.botao_adicionar)
+        self.layout_botoes.addWidget(self.botao_atualizar)
+        self.layout_botoes.addWidget(self.botao_remover)
 
         self.tabela_view = QTableView()
         self.tabela_view.setModel(model)
@@ -307,7 +321,6 @@ class TelaAdicionarProdutoEstoque(QFrame):
         self.grid.setSpacing(0)
         self.grid.setContentsMargins(0, 0, 0, 0)
         
-        
         self._layout = QVBoxLayout(self)
         self._layout.addWidget(self.frame_botoes)
         self._layout.addWidget(self.frame_tabela)
@@ -321,7 +334,7 @@ class TelaAdicionarProdutoEstoque(QFrame):
         self.setStyleSheet('background-color: #D9D9D9; ')
 
 
-a = TelaAdicionarProdutoEstoque()
+a = TelaPrincipal()
 
 a.show()
 sys.exit(app.exec())

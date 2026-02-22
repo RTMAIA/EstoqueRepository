@@ -117,7 +117,7 @@ class ProdutoService(GenericService):
         def __init__(self, repo_produto, categoria_service):
             self.campos_permitidos = ['nome', 'marca', 'categoria', 'valor_unitario']
             self.categoria_service = categoria_service
-            self.campos = ['NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO']
+            self.campos = ['ID', 'NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO']
             super().__init__(repo_produto)
 
         def _gerar_sku(self, **kwargs):
@@ -279,8 +279,8 @@ class EstoqueService(GenericService):
                 obj = obj.filter(Estoque.produto.has(getattr(Produtos, i).like(f'%{dados[i]}%')))
 
         obj = self.repo.session.scalars(obj).all()
-        resutlado = ResultadoBusca(dados=obj, campos=self.campos, filtros=filtros)
-        return resutlado
+        resultado = ResultadoBusca(dados=obj, campos=self.campos, filtros=filtros)
+        return resultado
 
 class MovimentacaoService(GenericService):
     def __init__(self, repo):

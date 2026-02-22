@@ -33,7 +33,7 @@ class ProdutosController:
         self.produto_service = produto_service
 
     def _converter_obj(self, obj):
-        dados_convertidos = [[[i.nome, i.marca,
+        dados_convertidos = [[[i.id, i.nome, i.marca,
                               i.categoria.nome,
                               i.sku, str(i.valor_unitario)] for i in obj.dados]]
         

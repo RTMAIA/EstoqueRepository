@@ -76,7 +76,7 @@ class EstoqueController:
     def ajustar_produto(self, id, **kwargs):
         self.estoque_service.ajustar_produto(id, **kwargs)
 
-    def inventario(self, id, **kwargs):\
+    def inventario(self, id, **kwargs): 
         self.estoque_service.inventario(id, **kwargs)
 
     def buscar_todos(self):
@@ -84,6 +84,11 @@ class EstoqueController:
         dados_convetidos = self._converter_obj(obj)
         return dados_convetidos
     
+    def buscar_por_id(self, id):
+        obj = self.estoque_service.buscar_por_id(id)
+        dados_convertidos = self._converter_obj(obj)
+        return dados_convertidos
+
     def filtrar(self, **kwargs):
         obj = self.estoque_service.filtrar(**kwargs)
         dados_convetidos = self._converter_obj(obj)

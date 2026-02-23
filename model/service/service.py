@@ -213,12 +213,12 @@ class EstoqueService(GenericService):
                 _ = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
                 obj_estoque = self.buscar_por_id(id)
                 for i in kwargs:
-                    quantidade_anterior = obj_estoque.quantidade
-                    setattr(obj_estoque, i, kwargs[i])
+                    quantidade_anterior = obj_estoque.dados[0].quantidade
+                    setattr(obj_estoque.dados[0], i, kwargs[i])
                 if 'quantidade' in kwargs:
-                    dados_payload = self.movimentacao_service._retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.quantidade)
-                    payload = self.movimentacao_service._payload_registro(tipo_movimentacao=dados_payload['tipo_movimentacao'], origem=origem,quantidade=dados_payload['diferenca'], obj_estoque=obj_estoque)
-                    self.movimentacao_service._criar(**payload)
+                    dados_payload = self.movimentacao_service._retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.dados[0].quantidade)
+                    payload = self.movimentacao_service._payload_registro(tipo_movimentacao=dados_payload['tipo_movimentacao'], origem=origem,quantidade=dados_payload['diferenca'], obj_estoque=obj_estoque.dados[0])
+                    self.movimentacao_service.criar(**payload)
                 self.repo.session.commit()
         except Exception as e:
              self.repo.session.rollback()
@@ -257,10 +257,11 @@ class EstoqueService(GenericService):
         self._atualizar_produto_e_registrar(id=id, origem=INVENTARIO, **kwargs)
 
     def buscar_por_id(self, id):
-        obj = self.repo.session.scalar(select(Estoque).where(id == Estoque.id))
+        obj = self.repo.session.scalars(select(Estoque).where(id == Estoque.id)).all()
         if not obj:
             raise ValueError('O produto não existe no estoque.')
-        return obj
+        resultado = ResultadoBusca(obj, self.campos)
+        return resultado
 
     def buscar_todos(self):
         obj = super().buscar_todos()

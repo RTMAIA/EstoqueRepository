@@ -64,7 +64,7 @@ class EstoqueController:
         self.estoque_service = estoque_service
 
     def _converter_obj(self, obj):
-        dados_convertidos = [[[i.produto.nome,
+        dados_convertidos = [[[i.id, i.produto.nome,
                               i.produto.categoria.nome, i.produto.marca, i.produto.sku,
                               str(i.produto.valor_unitario), i.quantidade, i.estoque_minimo, str(i.produto.valor_unitario * i.quantidade)] for i in obj.dados]]
         dados_convertidos.append(obj.campos)

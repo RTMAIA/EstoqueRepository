@@ -6,16 +6,17 @@ from PySide6.QtWidgets import (QApplication, QMainWindow,
                                 QAbstractItemView, QDialog,
                                 QMessageBox)
 from PySide6.QtCore import Qt
-from view.table_model.table_model import TableClass, TableEditableClass, NumDelegateOnly
+from view.table_model.table_model import TableClass, TableEditableClass
 from view.instancias import instances
 from view.style import style
+from view.validators_view.validators_view import NumDelegateOnly, IntValitidation
 import sys
 
 app = QApplication(sys.argv)
 app.setStyle('Fusion')
 
 class TelaPrincipal(QMainWindow):
-    def __init__(self, estoque_controller, produto_controller):
+    def __init__(self, estoque_controller, produto_controller, ):
         self.produto_controller = produto_controller
         self.estoque_controller = estoque_controller
         self.dados = self.estoque_controller.buscar_todos()
@@ -32,16 +33,13 @@ class TelaPrincipal(QMainWindow):
         self.barra_categoria = self.barra_menu('Categoria')
         self.submenu = self.gerar_submenu(self.barra_categoria, ['Criar Categoria', 'Atualizar Categoria', 'Remover Categoria', 'Buscar Todos'])
 
-
         self.barra_movimentacao = self.barra_menu('Movimentacao')
         self.submenu = self.gerar_submenu(self.barra_movimentacao, ['Filtrar'])
-
 
         #definicoes do frame da metade de cima
         self.frame_cima_fora = QFrame()
         self.frame_cima_fora.setStyleSheet(style.cor_fundo)
         self.frame_cima_fora.setContentsMargins(0, 0, 0, 0)
-
 
         self.entrada_nome = self.criar_campos('Pesquisar por Nome do Produto:')
         self.entrada_marca = self.criar_campos('Pesquisar por Marca do Produto:')
@@ -90,6 +88,7 @@ class TelaPrincipal(QMainWindow):
         self.tabela_view.setMinimumHeight(300)
         self.tabela_view.horizontalHeader().setStretchLastSection(True)
         self.tabela_view.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
+        self.tabela_view.hideColumn(0)
 
         self.frame_tabela = QFrame()
         self.frame_tabela.setStyleSheet(style.cor_secundaria)
@@ -179,9 +178,12 @@ class TelaPrincipal(QMainWindow):
           
     def navegar(self, setor, destino):
         if setor == 'Estoque':
+            self.tela_adicionar_estoque = SubMenuAdicionarEstoque(self, self.produto_controller)
+            self.tela_atualizar_estoque = SubMenuAjustarEstoque(self, self.tela_adicionar_estoque)
             if destino == 'Adicionar Produto':
-                self.tela = MenuEstoque(self, self.produto_controller)
-                self.tela.show()
+                self.tela_adicionar_estoque.show()
+            if destino == 'Atualizar Produto':
+                self.tela_atualizar_estoque.show()
 
     def definir_botao(self, texto, funcao=None):
         botao_pesquisar = QPushButton(texto)
@@ -193,34 +195,40 @@ class TelaPrincipal(QMainWindow):
             botao_pesquisar.clicked.connect(funcao)
         return botao_pesquisar
 
-class MenuEstoque(QFrame):
+class SubMenuAdicionarEstoque(QFrame):
     def __init__(self, tela_principal, produto_controller):
         self.tela_principal = tela_principal
         self.produto_controller = produto_controller
-        self.dados_adicionar_estoque = {}
-        self.submenu_adicionar = self.SubMenuAdicionarProduto(self, self.tela_principal)
-        self.submenu_ajustar = self.SubMenuAjustarEstoque(self, self.tela_principal)
-        super().__init__()
-
-        
-        self.setWindowTitle('Estoque — Adicionar Produto')
-
+        self.dados_id = {}
         self.dados = self.produto_controller.buscar_todos()
-        self.model = TableClass(self.dados)
+        super().__init__()
+        self.tela_adicionar = self.tela_pegar_id('Estoque — Adicionar Produto', 'ADICIONAR AO ESTOQUE', self.dados, self.adicionar_produto)
+        
+        self._layout = QVBoxLayout(self)
+        self._layout.addWidget(self.tela_adicionar)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+
+        self.setWindowTitle('Estoque — Adicionar ao Estoque')
+        self.setMinimumSize(900, 600)
+        self.setContentsMargins(10, 10, 10, 10)
+        self.setStyleSheet(style.cor_fundo)
+
+    def tela_pegar_id(self, title, nome_botao, dado, funcao):
+        self.tela = QFrame()
+        self.tela.setWindowTitle(title)
+
+        self.model = TableClass(dado)
 
         self.frame_botoes = QFrame()
         
         self.frame_botoes.setMaximumHeight(50)
         self.frame_botoes.setStyleSheet(style.cor_fundo)
 
-        self.botao_adicionar = self.tela_principal.definir_botao('ADICIONAR PRODUTO', self.submenu_adicionar.adicionar_produto)
-        self.botao_atualizar = self.tela_principal.definir_botao('ATUALIZAR PRODUTO', self.submenu_ajustar.tela_ajustar_estoque)
-        self.botao_remover = self.tela_principal.definir_botao('REMOVER PRODUTO')
+        self.botao_adicionar = self.tela_principal.definir_botao(nome_botao, funcao)
 
         self.layout_botoes = QHBoxLayout(self.frame_botoes)
         self.layout_botoes.addWidget(self.botao_adicionar)
-        self.layout_botoes.addWidget(self.botao_atualizar)
-        self.layout_botoes.addWidget(self.botao_remover)
 
         self.tabela_view = self.criar_tabela(self.model)
         self.tabela_view.hideColumn(0)
@@ -237,23 +245,24 @@ class MenuEstoque(QFrame):
         self.grid.setSpacing(0)
         self.grid.setContentsMargins(0, 0, 0, 0)
         
-        self._layout = QVBoxLayout(self)
-        self._layout.addWidget(self.frame_botoes)
-        self._layout.addWidget(self.frame_tabela)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(0)
-        self._layout.setStretch(0, 1)
-        self._layout.setStretch(1, 1)
+        self.tela_layout = QVBoxLayout(self.tela)
+        self.tela_layout.addWidget(self.frame_botoes)
+        self.tela_layout.addWidget(self.frame_tabela)
+        self.tela_layout.setContentsMargins(0, 0, 0, 0)
+        self.tela_layout.setSpacing(0)
+        self.tela_layout.setStretch(0, 1)
+        self.tela_layout.setStretch(1, 1)
         
-        self.setMinimumSize(900, 600)
-        self.setContentsMargins(10, 10, 10, 10)
-        self.setStyleSheet(style.cor_fundo)
+        self.tela.setMinimumSize(1000, 600)
+        self.tela.setContentsMargins(0, 0, 0, 0)
+        self.tela.setStyleSheet(style.cor_fundo)
+        return self.tela
 
     def pegar_dados_linha(self, index):
         linha = index.row()
         self.data = self.model.retornar_data()
         dados_linha = self.data[0][linha]
-        self.dados_adicionar_estoque['id_produto'] = dados_linha[0]
+        self.dados_id['id_produto'] = dados_linha[0]
 
     def msg(self, titulo, texto, icon):
             icone = {'warning': QMessageBox.Icon.Warning, 'information': QMessageBox.Icon.Information}
@@ -280,149 +289,160 @@ class MenuEstoque(QFrame):
 
         return tabela_view
 
-    class SubMenuAdicionarProduto:
-        def __init__(self, menu_estoque, tela_principal):
-            self.menu_estoque = menu_estoque
-            self.tela_principal = tela_principal
+    def tela_concluir_produto_estoque(self):
+        self.tela_dados = QDialog()
+        self.tela_dados.setWindowTitle('Estoque — Adicionar Produto')
+        self.tela_dados.setStyleSheet(style.cor_fundo)
 
-        def tela_concluir_produto_estoque(self):
-            self.tela_dados = QDialog()
-            self.tela_dados.setWindowTitle('Estoque — Adicionar Produto')
-            self.tela_dados.setStyleSheet(style.cor_fundo)
+        frame = QFrame()
+        frame.setContentsMargins(0, 0, 0, 0)
 
-            frame = QFrame()
-            frame.setContentsMargins(0, 0, 0, 0)
+        frame_botao = QFrame()
 
-            frame_botao = QFrame()
+        self.botao_ok = self.tela_principal.definir_botao('OK', self.pegar_dado_tela)
 
-            self.botao_ok = self.tela_principal.definir_botao('OK', self.pegar_dado_tela)
+        self.botao_cancel = self.tela_principal.definir_botao('CANCEL', self.limpar_e_fechar)
 
-            self.botao_cancel = self.tela_principal.definir_botao('CANCEL', self.limpar_e_fechar)
+        layout_frame_botao =  QHBoxLayout(frame_botao)
+        layout_frame_botao.addWidget(self.botao_ok)
+        layout_frame_botao.addWidget(self.botao_cancel)
 
-            layout_frame_botao =  QHBoxLayout(frame_botao)
-            layout_frame_botao.addWidget(self.botao_ok)
-            layout_frame_botao.addWidget(self.botao_cancel)
+        grid = QGridLayout(frame)
 
-            grid = QGridLayout(frame)
+        self.entrada_quantidade = self.tela_principal.criar_campos('Digite a quantidade: ')
+        self.entrada_estoque_minimo = self.tela_principal.criar_campos('Digite o estoque minimo: ')
+        self.entrada_quantidade.setValidator(IntValitidation.validate())
+        self.entrada_estoque_minimo.setValidator(IntValitidation.validate())
 
-            self.entrada_quantidade = self.tela_principal.criar_campos('Digite a quantidade: ')
-            self.entrada_estoque_minimo = self.tela_principal.criar_campos('Digite o estoque minimo: ')
+        campo_quantidade = self.tela_principal.adicionar_bordas(self.entrada_quantidade)
+        campo_estoque_minimo = self.tela_principal.adicionar_bordas(self.entrada_estoque_minimo)
 
-            campo_quantidade = self.tela_principal.adicionar_bordas(self.entrada_quantidade)
-            campo_estoque_minimo = self.tela_principal.adicionar_bordas(self.entrada_estoque_minimo)
+        self.tela_principal.posicionar_campo(grid, 'Quantidade', campo_quantidade, 0, 0, 1, 0)
+        self.tela_principal.posicionar_campo(grid, 'Estoque Minimo', campo_estoque_minimo, 0, 1, 1, 1)
 
-            self.tela_principal.posicionar_campo(grid, 'Quantidade', campo_quantidade, 0, 0, 1, 0)
-            self.tela_principal.posicionar_campo(grid, 'Estoque Minimo', campo_estoque_minimo, 0, 1, 1, 1)
+        grid.addWidget(campo_quantidade)
+        grid.addWidget(campo_estoque_minimo)
 
-            grid.addWidget(campo_quantidade)
-            grid.addWidget(campo_estoque_minimo)
+        layout_frame = QVBoxLayout(self.tela_dados)
+        layout_frame.addWidget(frame)
+        layout_frame.addWidget(frame_botao)
 
-            layout_frame = QVBoxLayout(self.tela_dados)
-            layout_frame.addWidget(frame)
-            layout_frame.addWidget(frame_botao)
+        self.tela_dados.setFixedSize(450, 200)
+        self.tela_dados.exec()
 
-            self.tela_dados.setFixedSize(450, 200)
-            self.tela_dados.exec()
+    def limpar_e_fechar(self):
+        self.entrada_quantidade.clear()
+        self.entrada_estoque_minimo.clear()
+        self.dados_id.clear()
+        self.tela_dados.close()
+        return
 
-        def limpar_e_fechar(self):
-            self.entrada_quantidade.clear()
-            self.entrada_estoque_minimo.clear()
-            self.menu_estoque.dados_adicionar_estoque.clear()
-            self.tela_dados.close()
+    def pegar_dado_tela(self):
+        try:
+                if not self.entrada_quantidade.text().strip() or not self.entrada_estoque_minimo.text().strip():
+                    self.msg('Aviso', 'Os campos não podem estar vazios.', 'warning')
+                    return
+                if not self.entrada_quantidade.text().isdigit() and not self.entrada_estoque_minimo.text().isdigit():
+                    raise ValueError('O campo não pode conter letras.')
+                self.dados_id['quantidade'] = int(self.entrada_quantidade.text())
+                self.dados_id['estoque_minimo'] = int(self.entrada_estoque_minimo.text())
+                self.tela_dados.accept()
+        except Exception as e:
+            self.msg('Error', e, 'warning')
+
+    def adicionar_produto(self):
+        try:
+            if self.dados_id:
+                self.tela_concluir_produto_estoque()
+                if len(self.dados_id) == 3:
+                    self.tela_principal.estoque_controller.adicionar_produto_estoque(**self.dados_id)
+                    dados_novos = self.tela_principal.estoque_controller.buscar_todos()
+                    self.tela_principal.tabela_model.atualizar_dados_model(dados_novos)
+                    self.msg('Sucesso!', 'Produto Adicionado ao Estoque!', 'information')
+                    self.dados_id.clear()
+                    return
+                return
+        except Exception as e:
+            self.dados_id.clear()
+            self.msg('Error', e, 'warning')
             return
 
-        def pegar_dado_tela(self):
-            try:
-                if self.entrada_estoque_minimo.text().isdigit() or self.entrada_quantidade.text().isdigit():
-                    if not self.entrada_quantidade.text().strip() or not self.entrada_estoque_minimo.text().strip():
-                        self.menu_estoque.msg('Aviso', 'Os campos não podem estar vazios.', 'warning')
-                        return
-                    self.menu_estoque.dados_adicionar_estoque['quantidade'] = int(self.entrada_quantidade.text())
-                    self.menu_estoque.dados_adicionar_estoque['estoque_minimo'] = self.entrada_estoque_minimo.text()
-                    self.tela_dados.accept()
-                raise ValueError('O campo não pode conter letras.')
-            except Exception as e:
-                self.menu_estoque.msg('Error', e, 'warning')
+class SubMenuAjustarEstoque(QFrame):
+    def __init__(self, tela_principal, sub_menu_adicionar_estoque):
+        self.sub_menu_adicionar_estoque = sub_menu_adicionar_estoque
+        self.tela_principal = tela_principal
+        super().__init__()
+        self.dados_estoque = tela_principal.estoque_controller.buscar_todos()
+        self.tela_atualizar = self.sub_menu_adicionar_estoque.tela_pegar_id('Estoque — Atualizar Produto no Estoque', 'ATUALIZAR ESTOQUE', self.dados_estoque, self.tela_ajustar_estoque)
 
-        def adicionar_produto(self):
-            try:
-                if self.menu_estoque.dados_adicionar_estoque:
-                    self.tela_concluir_produto_estoque()
-                    if len(self.menu_estoque.dados_adicionar_estoque) == 3:
-                        self.tela_principal.estoque_controller.adicionar_produto_estoque(**self.menu_estoque.dados_adicionar_estoque)
-                        dados_novos = self.tela_principal.estoque_controller.buscar_todos()
-                        self.tela_principal.tabela_model.atualizar_dados_model(dados_novos)
-                        self.menu_estoque.msg('Sucesso!', 'Produto Adicionado ao Estoque!', 'information')
-                        self.menu_estoque.dados_adicionar_estoque.clear()
-                        return
-                    return
-            except Exception as e:
-                self.menu_estoque.dados_adicionar_estoque.clear()
-                self.menu_estoque.msg('Error', e, 'warning')
-                return
+        self._layout = QVBoxLayout(self)
+        self._layout.addWidget(self.tela_atualizar)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
 
-    class SubMenuAjustarEstoque:
-        def __init__(self, menu_estoque, tela_principal):
-            self.menu_estoque = menu_estoque
-            self.tela_principal = tela_principal
+        self.setWindowTitle('Estoque — Atualizar Produto no Estoque')
+        self.setMinimumSize(900, 600)
+        self.setContentsMargins(10, 10, 10, 10)
+        self.setStyleSheet(style.cor_fundo)
 
-        def tela_ajustar_estoque(self):
-            self.id = int(self.menu_estoque.dados_adicionar_estoque['id_produto'])
-            self.dados = self.tela_principal.estoque_controller.buscar_por_id(self.id)
+    def tela_ajustar_estoque(self):
+        self.id = self.sub_menu_adicionar_estoque.dados_id['id_produto']
+        self.dados = self.tela_principal.estoque_controller.buscar_por_id(self.id)
 
-            self.tela_ajustar = QDialog()
-            self.tela_ajustar.setFixedSize(1000, 500)
-            
-            self.frame_cima = QFrame()
-            self.frame_cima.setStyleSheet(style.cor_fundo)
-            self.frame_cima.setContentsMargins(0, 0, 0, 0)
-            self.frame_cima.setFixedHeight(100)
+        self.tela_ajustar = QDialog()
+        self.tela_ajustar.setWindowTitle('Estoque — Ajustar Estoque')
+        self.tela_ajustar.setFixedSize(1000, 500)
+        
+        self.frame_cima = QFrame()
+        self.frame_cima.setStyleSheet(style.cor_fundo)
+        self.frame_cima.setContentsMargins(0, 0, 0, 0)
+        self.frame_cima.setFixedHeight(100)
 
-            self.frame_baixo = QFrame()
-            self.frame_baixo.setStyleSheet(style.cor_secundaria)
-            self.frame_baixo.setContentsMargins(0, 0, 0, 0)
+        self.frame_baixo = QFrame()
+        self.frame_baixo.setStyleSheet(style.cor_secundaria)
+        self.frame_baixo.setContentsMargins(0, 0, 0, 0)
 
-            self.tabela_model = TableEditableClass(self.dados)
+        self.tabela_model = TableEditableClass(self.dados)
 
-            self.botao_ok = self.tela_principal.definir_botao('OK', self.ajustar_estoque)
-            self.botao_cancel = self.tela_principal.definir_botao('CANCEL', self.tela_ajustar.close)
+        self.botao_ok = self.tela_principal.definir_botao('OK', self.ajustar_estoque)
+        self.botao_cancel = self.tela_principal.definir_botao('CANCEL', self.tela_ajustar.close)
 
-            self.delegate_num = NumDelegateOnly()
+        self.delegate_num = NumDelegateOnly()
 
-            self.tabela_view = self.menu_estoque.criar_tabela(self.tabela_model)
-            self.tabela_view.setItemDelegateForColumn(5, self.delegate_num)
-            self.tabela_view.setItemDelegateForColumn(6, self.delegate_num)
-            self.tabela_view.hideColumn(0)
+        self.tabela_view = self.sub_menu_adicionar_estoque.criar_tabela(self.tabela_model)
+        self.tabela_view.setItemDelegateForColumn(5, self.delegate_num)
+        self.tabela_view.setItemDelegateForColumn(6, self.delegate_num)
+        self.tabela_view.hideColumn(0)
 
-            self.layout_frame_cima = QHBoxLayout(self.frame_cima)
-            self.layout_frame_cima.addWidget(self.botao_ok)
-            self.layout_frame_cima.addWidget(self.botao_cancel)
+        self.layout_frame_cima = QHBoxLayout(self.frame_cima)
+        self.layout_frame_cima.addWidget(self.botao_ok)
+        self.layout_frame_cima.addWidget(self.botao_cancel)
 
-            self.layout_frame_baixo = QVBoxLayout(self.frame_baixo)
-            self.layout_frame_baixo.addWidget(self.tabela_view)
-            self.layout_frame_baixo.setContentsMargins(10, 10, 10, 10)
+        self.layout_frame_baixo = QVBoxLayout(self.frame_baixo)
+        self.layout_frame_baixo.addWidget(self.tabela_view)
+        self.layout_frame_baixo.setContentsMargins(10, 10, 10, 10)
 
-            self.layout_pricipal = QVBoxLayout(self.tela_ajustar)
-            self.layout_pricipal.addWidget(self.frame_cima)
-            self.layout_pricipal.addWidget(self.frame_baixo)
-            self.layout_pricipal.setSpacing(0)
+        self.layout_pricipal = QVBoxLayout(self.tela_ajustar)
+        self.layout_pricipal.addWidget(self.frame_cima)
+        self.layout_pricipal.addWidget(self.frame_baixo)
+        self.layout_pricipal.setSpacing(0)
 
-            self.grid = QGridLayout(self.tabela_view)
-            self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid = QGridLayout(self.tabela_view)
+        self.grid.setContentsMargins(0, 0, 0, 0)
 
-            self.tela_ajustar.exec()
+        self.tela_ajustar.exec()
 
-        def ajustar_estoque(self):
-            print(self.id)
-            try:
-                dado_model = self.tabela_model.retornar_data()
+    def ajustar_estoque(self):
+        try:
+            dado_model = self.tabela_model.retornar_data()
+            if dado_model:
                 self.tela_principal.estoque_controller.ajustar_produto(self.id, **dado_model)
                 dados_novos = self.tela_principal.estoque_controller.buscar_todos()
                 self.tela_principal.tabela_model.atualizar_dados_model(dados_novos)
-                self.menu_estoque.msg('Success', 'Estoque ajustado com sucesso!', 'information')
+                self.sub_menu_adicionar_estoque.msg('Success', 'Estoque ajustado com sucesso!', 'information')
                 self.tela_ajustar.close()
-            except Exception as e:
-                self.menu_estoque.msg('Error', e, 'warning')
+        except Exception as e:
+            self.sub_menu_adicionar_estoque.msg('Error', e, 'warning')
 
 a = TelaPrincipal(instances.estoque_controller, instances.produto_controller)
 

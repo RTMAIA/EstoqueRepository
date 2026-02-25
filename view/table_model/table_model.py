@@ -1,6 +1,4 @@
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
-from PySide6.QtWidgets import QStyledItemDelegate, QLineEdit
-from PySide6.QtGui import QIntValidator
 
 class TableClass(QAbstractTableModel):
     def __init__(self, data):
@@ -66,7 +64,7 @@ class TableEditableClass(QAbstractTableModel):
         return None
     
     def flags(self, index):
-        if index.column() == 5 or index.column() == 6:
+        if index.column() == 6 or index.column() == 7:
             return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
     
@@ -89,11 +87,3 @@ class TableEditableClass(QAbstractTableModel):
         self.beginResetModel()
         self._data = novos_dados
         self.endResetModel()
-
-class NumDelegateOnly(QStyledItemDelegate):
-    def createEditor(self, parent, option, index):
-        editor = QLineEdit(parent)
-
-        validator = QIntValidator(0, 999999, editor)
-        editor.setValidator(validator)
-        return editor

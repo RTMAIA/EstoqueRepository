@@ -198,7 +198,7 @@ class EstoqueService(GenericService):
         self.campos_permitidos = ['id_produto', 'quantidade', 'estoque_minimo']
         self.produto_service = produto_service
         self.movimentacao_service = movimentacao_service
-        self.campos = ['NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO', 'QUANTIDADE', 'ESTOQUE_MINIMO', 'VALOR_TOTAL']
+        self.campos = ['ID', 'NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO', 'QUANTIDADE', 'ESTOQUE_MINIMO', 'VALOR_TOTAL']
         super().__init__(repo)
 
     def _validate_create(self, **kwargs):

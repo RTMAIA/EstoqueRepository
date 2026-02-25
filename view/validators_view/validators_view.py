@@ -10,7 +10,7 @@ class NumDelegateOnly(QStyledItemDelegate):
         editor.setValidator(validator)
         return editor
 
-class IntValitidation(QIntValidator):
+class IntValidation(QIntValidator):
 
     @classmethod
     def validate(cls):

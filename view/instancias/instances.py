@@ -8,7 +8,7 @@ movimentacao = service.MovimentacaoService(repoMovimentacao)
 estoque = service.EstoqueService(repoEstoque, produto, movimentacao)
 relatorio = service.RelatorioService(movimentacao)
 
-categoria_controller = controller.CategoriasControler(categoria)
+categoria_controller = controller.CategoriasController(categoria)
 produto_controller = controller.ProdutosController(produto)
 estoque_controller = controller.EstoqueController(estoque)
 movimentacao_controller = controller.movimentacaoController(movimentacao)

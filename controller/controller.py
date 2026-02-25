@@ -1,6 +1,6 @@
 
 
-class CategoriasControler:
+class CategoriasController:
     def __init__(self, categoria_service):
         self.categoria_services = categoria_service
 
@@ -81,8 +81,8 @@ class EstoqueController:
 
     def buscar_todos(self):
         obj = self.estoque_service.buscar_todos()
-        dados_convetidos = self._converter_obj(obj)
-        return dados_convetidos
+        dados_convertidos = self._converter_obj(obj)
+        return dados_convertidos
     
     def buscar_por_id(self, id):
         obj = self.estoque_service.buscar_por_id(id)
@@ -91,8 +91,8 @@ class EstoqueController:
 
     def filtrar(self, **kwargs):
         obj = self.estoque_service.filtrar(**kwargs)
-        dados_convetidos = self._converter_obj(obj)
-        return dados_convetidos
+        dados_convertidos = self._converter_obj(obj)
+        return dados_convertidos
 
 class movimentacaoController:
     def __init__(self, movimentacao_service):

@@ -91,7 +91,7 @@ class CategoriaService(GenericService):
             obj = self.repo.session.scalar(select(Categorias).where(kwargs['nome'] == Categorias.nome))
             if not obj:
                 return super().update(id, **kwargs)
-            raise ValueError(f'Cateogria {kwargs['nome']} já existe.')
+            raise ValueError(f'Categoria {kwargs['nome']} já existe.')
             
         def delete(self, id):
             obj = self.buscar_por_id(id)

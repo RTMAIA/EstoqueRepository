@@ -94,12 +94,8 @@ class CategoriaService(GenericService):
             raise ValueError(f'Categoria {kwargs['nome']} já existe.')
             
         def delete(self, id):
-            obj = self.buscar_por_id(id)
-            if obj:
-                 self.repo.session.delete(obj[0])
-                 self.repo.session.commit()
-                 return 'A categoria foi deletada.'
-            raise ValueError(f'A categoria não existe.')
+            super().delete(id)
+            return 'A categoria foi deletada.'
 
         def existe_categoria(self, nome):
             obj = self.repo.session.scalar(select(Categorias).where(nome == Categorias.nome))
@@ -203,8 +199,8 @@ class EstoqueService(GenericService):
 
     def _validate_create(self, **kwargs):
         if EstoqueValidation(**kwargs):
-            id_estoque = self._buscar_estoque_por_id_produto(id_produto=kwargs['id_produto'])
-            _ = self.produto_service.buscar_por_id(id=id_estoque)
+            id_produto = self._buscar_estoque_por_id_produto(id_produto=kwargs['id_produto'])
+            _ = self.produto_service.buscar_por_id(id=id_produto)
             return super()._validate_create(**kwargs)
 
     def _atualizar_produto_e_registrar(self, id, origem, **kwargs):
@@ -212,8 +208,9 @@ class EstoqueService(GenericService):
             if EstoqueValidation(**kwargs):
                 _ = self._validar_campos_permitidos(self.campos_permitidos, **kwargs)
                 obj_estoque = self.buscar_por_id(id)
+                quantidade_anterior = obj_estoque.dados[0].quantidade
                 for i in kwargs:
-                    quantidade_anterior = obj_estoque.dados[0].quantidade
+                    print(kwargs)
                     setattr(obj_estoque.dados[0], i, kwargs[i])
                 if 'quantidade' in kwargs:
                     dados_payload = self.movimentacao_service._retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.dados[0].quantidade)
@@ -282,6 +279,10 @@ class EstoqueService(GenericService):
         obj = self.repo.session.scalars(obj).all()
         resultado = ResultadoBusca(dados=obj, campos=self.campos, filtros=filtros)
         return resultado
+
+    def delete(self, id):
+        super().delete(id)
+        return 'Produto apagado do estoque com sucesso!'
 
 class MovimentacaoService(GenericService):
     def __init__(self, repo):

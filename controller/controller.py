@@ -94,6 +94,10 @@ class EstoqueController:
         dados_convertidos = self._converter_obj(obj)
         return dados_convertidos
 
+    def delete(self, id):
+        info = self.estoque_service.delete(id)
+        return info
+
 class movimentacaoController:
     def __init__(self, movimentacao_service):
         self.movimentacao_service = movimentacao_service

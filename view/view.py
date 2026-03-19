@@ -4,21 +4,23 @@ from PySide6.QtWidgets import (QApplication, QMainWindow,
                                 QHeaderView, QLineEdit,
                                 QPushButton, QGridLayout,
                                 QAbstractItemView, QDialog,
-                                QMessageBox)
+                                QMessageBox, QComboBox)
 from PySide6.QtCore import Qt
 from view.table_model.table_model import TableClass, TableEditableClass
 from view.instancias import instances
 from view.style import style
 from view.validators_view.validators_view import NumDelegateOnly, IntValidation
+from decimal import Decimal
 import sys
 
 app = QApplication(sys.argv)
 app.setStyle('Fusion')
 
 class TelaPrincipal(QMainWindow):
-    def __init__(self, estoque_controller, produto_controller, ):
+    def __init__(self, estoque_controller, produto_controller, categoria_controller):
         self.produto_controller = produto_controller
         self.estoque_controller = estoque_controller
+        self.categoria_controller = categoria_controller
         self.dados = self.estoque_controller.buscar_todos()
         self.dados_id = {}
         super().__init__()
@@ -42,13 +44,13 @@ class TelaPrincipal(QMainWindow):
         self.frame_cima_fora.setStyleSheet(style.cor_fundo)
         self.frame_cima_fora.setContentsMargins(0, 0, 0, 0)
 
-        self.entrada_nome = self.criar_campos('Pesquisar por Nome do Produto:')
-        self.entrada_marca = self.criar_campos('Pesquisar por Marca do Produto:')
-        self.entrada_categoria = self.criar_campos('Pesquisar por Categoria do Produto:')
-        self.entrada_sku = self.criar_campos('Pesquisa por SKU do Produto:')
-        self.entrada_valor_unitario = self.criar_campos('Pesquisar por Valor Unitário do Produto:')
-        self.entrada_quantidade = self.criar_campos('Pesquisar por Quantidade do Produto:')
-        self.entrada_estoque_minimo = self.criar_campos('Pesquisar por Estoque Mínimo do Produto:')
+        self.entrada_nome = self.criar_campos('Pesquisar por Nome do Produto...')
+        self.entrada_marca = self.criar_campos('Pesquisar por Marca do Produto...')
+        self.entrada_categoria = self.criar_campos('Pesquisar por Categoria do Produto...')
+        self.entrada_sku = self.criar_campos('Pesquisa por SKU do Produto...')
+        self.entrada_valor_unitario = self.criar_campos('Pesquisar por Valor Unitário do Produto...')
+        self.entrada_quantidade = self.criar_campos('Pesquisar por Quantidade do Produto...')
+        self.entrada_estoque_minimo = self.criar_campos('Pesquisar por Estoque Mínimo do Produto...')
 
             #borda do campo de pesquisa
         self.campo_nome = self.adicionar_bordas(self.entrada_nome)
@@ -180,14 +182,18 @@ class TelaPrincipal(QMainWindow):
     def navegar(self, setor, destino):
         if setor == 'Estoque':
             if destino == 'Adicionar Produto':
-                self.tela_adicionar_produto_estoque = SubMenuAdicionarProdutoEstoque(self, self.produto_controller)
+                self.tela_adicionar_produto_estoque = SubMenuEstoqueAdicionarProduto(self, self.produto_controller)
                 self.tela_adicionar_produto_estoque.show()
             if destino == 'Atualizar Produto':
-                self.tela_atualizar_produto_estoque = SubMenuAtualizarProdutoEstoque(self)
+                self.tela_atualizar_produto_estoque = SubMenuEstoqueAtualizarProduto(self)
                 self.tela_atualizar_produto_estoque.show()
             if destino == 'Remover Produto':
-                self.tela_remover_produto_estoque = SubMenuRemoverProdutoEstoque(self)
+                self.tela_remover_produto_estoque = SubMenuEstoqueRemoverProduto(self)
                 self.tela_remover_produto_estoque.show()
+        if setor == 'Produto':
+            if destino == 'Criar Produto':
+                self.tela_criar_produto = SubMenuProdutoCriarProduto(self, self.categoria_controller)
+                self.tela_criar_produto.show()
 
     def definir_botao(self, texto, funcao=None):
         botao_pesquisar = QPushButton(texto)
@@ -274,7 +280,26 @@ class TelaPrincipal(QMainWindow):
                 msg.setStyleSheet(style.estilo_messagebox_information)
             msg.exec()
 
-class SubMenuAdicionarProdutoEstoque(QFrame):
+    def tela_confirmacao(self):
+        if self.dados_id:
+            self.confirmacao = QMessageBox()
+            self.confirmacao.setWindowTitle('Confirmação')
+            self.confirmacao.setText('Você realmente deseja remover esse item?')
+            self.confirmacao.setIcon(QMessageBox.Icon.Question)
+
+            self.botao_sim = self.confirmacao.addButton('Sim', QMessageBox.YesRole)
+            self.botao_nao = self.confirmacao.addButton('Não', QMessageBox.NoRole)
+
+            self.confirmacao.setMinimumSize(500, 600)
+            self.confirmacao.setStyleSheet(style.estilo_messagebox_information)
+
+            self.confirmacao.exec()
+
+            if self.confirmacao.clickedButton() == self.botao_sim:
+                return True
+            return
+
+class SubMenuEstoqueAdicionarProduto(QFrame):
     def __init__(self, tela_principal, produto_controller):
         self.tela_principal = tela_principal
         self.produto_controller = produto_controller
@@ -370,7 +395,7 @@ class SubMenuAdicionarProdutoEstoque(QFrame):
             self.tela_principal.msg('Error', e, 'warning')
             return
 
-class SubMenuAtualizarProdutoEstoque(QFrame):
+class SubMenuEstoqueAtualizarProduto(QFrame):
     def __init__(self, tela_principal):
         self.tela_principal = tela_principal
         super().__init__()
@@ -447,12 +472,12 @@ class SubMenuAtualizarProdutoEstoque(QFrame):
         except Exception as e:
             self.tela_principal.msg('Error', e, 'warning')
 
-class SubMenuRemoverProdutoEstoque(QFrame):
+class SubMenuEstoqueRemoverProduto(QFrame):
     def __init__(self,tela_principal):
         self.tela_principal = tela_principal
         super().__init__()
         self.dados_estoque = self.tela_principal.estoque_controller.buscar_todos()
-        self.tela_deletar = self.tela_principal.tela_pegar_id('Estoque — Remover Produto do Estoque', 'REMOVER PRODUTO', self.dados_estoque, self.tela_confirmacao)
+        self.tela_deletar = self.tela_principal.tela_pegar_id('Estoque — Remover Produto do Estoque', 'REMOVER PRODUTO', self.dados_estoque, self.remover_produto)
 
         self._layout = QVBoxLayout(self)
         self._layout.addWidget(self.tela_deletar)
@@ -464,36 +489,89 @@ class SubMenuRemoverProdutoEstoque(QFrame):
         self.setContentsMargins(10, 10, 10, 10)
         self.setStyleSheet(style.cor_fundo)
 
-    def tela_confirmacao(self):
-        if self.tela_principal.dados_id:
-            self.confirmacao = QMessageBox()
-            self.confirmacao.setWindowTitle('Confirmação')
-            self.confirmacao.setText('Você realmente deseja remover esse item?')
-            self.confirmacao.setIcon(QMessageBox.Icon.Question)
-
-            self.botao_sim = self.confirmacao.addButton('Sim', QMessageBox.YesRole)
-            self.botao_nao = self.confirmacao.addButton('Não', QMessageBox.NoRole)
-
-            self.confirmacao.setMinimumSize(500, 600)
-            self.confirmacao.setStyleSheet(style.estilo_messagebox_information)
-
-            self.confirmacao.exec()
-
-            if self.confirmacao.clickedButton() == self.botao_sim:
-                self.remover_produto()
-                return
-
     def remover_produto(self):
         try:
+            if not self.tela_principal.tela_confirmacao():
+                return
             self.id = self.tela_principal.dados_id['id_produto']
             self.info = self.tela_principal.estoque_controller.delete(self.id)
             novos_dados = self.tela_principal.estoque_controller.buscar_todos()
             self.tela_principal.tabela_model.atualizar_dados_model(novos_dados)
             self.tela_principal.msg('Sucess', self.info, 'information')
+            self.tela_principal.dados_id.clear()
         except Exception as e:
             self.tela_principal.msg('Error', e, 'warning')
 
-a = TelaPrincipal(instances.estoque_controller, instances.produto_controller)
+class SubMenuProdutoCriarProduto(QFrame):
+    def __init__(self, tela_principal, categoria_controller):
+        self.tela_principal = tela_principal
+        self.categoria_controller = categoria_controller
+        super().__init__()
+        self.dados_produto = self.tela_principal.produto_controller.buscar_todos()
+
+        self.campo_nome = self.tela_principal.criar_campos('Digite o nome do produto...')
+        self.campo_marca = self.tela_principal.criar_campos('Digite a marca do produto...')
+        self.campo_valor_unitario = self.tela_principal.criar_campos('Digite o valor unitário do produto...')
+        self.campo_valor_unitario.setValidator(IntValidation.validate())
+        self.menu_suspenso_categoria = self.criar_menu_suspenso()
+
+        self.campo_nome_borda = self.tela_principal.adicionar_bordas(self.campo_nome)
+        self.campo_marca_borda = self.tela_principal.adicionar_bordas(self.campo_marca)
+        self.campo_valor_unitario_borda = self.tela_principal.adicionar_bordas(self.campo_valor_unitario)
+        self.menu_suspenso_categoria_borda = self.tela_principal.adicionar_bordas(self.menu_suspenso_categoria)
+
+        self.botao_enviar = self.tela_principal.definir_botao('CRIAR PRODUTO', self.criar_produto)
+
+        self.frame_fora = QFrame()
+        self.frame_fora.setStyleSheet(style.cor_secundaria)
+        self.frame_fora.setMinimumSize(630, 410)
+
+        self.frame_dentro = QFrame()
+        self.frame_dentro.setStyleSheet(style.cor_fundo)
+        self.frame_dentro.setContentsMargins(10, 10, 10, 10)
+        self.frame_dentro.setMinimumSize(640, 420)
+
+        self.grid = QGridLayout(self.frame_dentro)
+        self.grid.setContentsMargins(0, 100, 0 ,150)
+
+        tela_principal.posicionar_campo(self.grid, 'nome', self.campo_nome_borda, 0, 0, 1, 0)
+        tela_principal.posicionar_campo(self.grid, 'marca', self.campo_marca_borda, 0, 1, 1, 1)
+        tela_principal.posicionar_campo(self.grid, 'valor Unitário', self.campo_valor_unitario_borda, 2, 0, 3, 0)
+        self.grid.addWidget(self.menu_suspenso_categoria, 3, 1)
+        self.grid.addWidget(self.botao_enviar, 4, 0, 5, 0)
+
+        self.layout_frame_fora = QVBoxLayout(self.frame_fora)
+        self.layout_frame_fora.addWidget(self.frame_dentro, alignment=Qt.AlignCenter)
+
+        self._layout = QVBoxLayout(self)
+        self._layout.addWidget(self.frame_fora, alignment=Qt.AlignCenter)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+
+        self.setWindowTitle('Produtos — Criar Produto')
+        self.setFixedSize(680, 460)
+        self.setContentsMargins(10, 10, 10, 10)
+        self.setStyleSheet(style.cor_fundo)
+
+    def criar_produto(self):
+        try:
+            self.dado = {'nome': self.campo_nome.text(), 'marca': self.campo_marca.text(), 'valor_unitario': Decimal(self.campo_valor_unitario.text()), 'categoria': self.menu_suspenso_categoria.currentText().lower()}
+            self.tela_principal.produto_controller.criar(**self.dado)
+            self.tela_principal.msg('Sucess', f'Produto {self.campo_nome.text().upper()} criado com sucesso!', 'information')
+        except Exception as e:
+            self.tela_principal.msg('Error', e, 'warning')    
+
+    def criar_menu_suspenso(self):
+        self.menu = QComboBox()
+        self.menu.setStyleSheet(style.estilo_menu_suspenso)
+        self.menu.setMaximumHeight(32)
+        self.menu.setContentsMargins(0, 0, 0, 0)
+        self.dados_categoria = self.categoria_controller.buscar_todos()
+        self.menu.addItems(list(map(str.capitalize, self.dados_categoria[0])))
+        self.menu.setCurrentIndex(-1)
+        return self.menu
+
+a = TelaPrincipal(instances.estoque_controller, instances.produto_controller, instances.categoria_controller)
 
 a.show()
 sys.exit(app.exec())

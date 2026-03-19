@@ -62,6 +62,7 @@ class GenericService():
 class CategoriaService(GenericService):
         def __init__(self, repo):
               self.campos_permitidos = ['nome']
+              self.campo = ['ID', 'NOME']
               super().__init__(repo)
         
         def _validate_create(self, **kwargs):
@@ -76,7 +77,8 @@ class CategoriaService(GenericService):
                 
         def buscar_todos(self):
             obj = super().buscar_todos()
-            return obj
+            resultado = ResultadoBusca(dados=obj, campos=self.campo)
+            return resultado
 
         def buscar_por_id(self, id):
             return super().buscar_por_id(id)
@@ -84,7 +86,7 @@ class CategoriaService(GenericService):
         def buscar_por_nome(self, **kwargs):
              id = self.retornar_id(**kwargs)
              obj = self.buscar_por_id(id)
-             resultado = ResultadoBusca(dados=obj, filtros=kwargs)
+             resultado = ResultadoBusca(dados=obj, campos=self.campo)
              return resultado
         
         def update(self, id, **kwargs):
@@ -140,7 +142,7 @@ class ProdutoService(GenericService):
             if 'id_categoria' in kwargs:
                 if CategoriaValidation(**kwargs):
                     id = self.categoria_service.retornar_id(nome=kwargs['categoria'])
-                    dado_deletado = kwargs.pop['categoria']
+                    dado_deletado = kwargs.pop('categoria')
                     kwargs['id_categoria'] = id
             if ProdutoUpdateValidation(**kwargs):
                 return kwargs
@@ -210,7 +212,6 @@ class EstoqueService(GenericService):
                 obj_estoque = self.buscar_por_id(id)
                 quantidade_anterior = obj_estoque.dados[0].quantidade
                 for i in kwargs:
-                    print(kwargs)
                     setattr(obj_estoque.dados[0], i, kwargs[i])
                 if 'quantidade' in kwargs:
                     dados_payload = self.movimentacao_service._retorna_tipo_e_quantidade(quantidade_anterior=quantidade_anterior, quantidade_atual=obj_estoque.dados[0].quantidade)

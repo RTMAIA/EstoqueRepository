@@ -24,9 +24,13 @@ class CategoriasController:
         return dados_convertidos
 
     def buscar_por_nome(self, nome):
-        obj = self.categoria_services.buscar_por_nome(nome)
+        obj = self.categoria_services.buscar_por_nome(nome=nome)
         dados_convertidos = self._converter_obj(obj)
         return dados_convertidos
+    
+    def retornar_id(self, nome):
+        categoria_id = self.categoria_services.retornar_id(nome=nome)
+        return categoria_id
 
 class ProdutosController:
     def __init__(self, produto_service):

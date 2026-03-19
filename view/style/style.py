@@ -108,3 +108,26 @@ estilo_messagebox_information = '''
                                     background-color: white;
                                 }
     '''
+
+estilo_menu_suspenso = """
+    QComboBox {
+        background-color: #D9D9D9;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+        color: #909090;
+        border: 5px solid #BDBDBD;
+        border-radius: 0px;
+        padding: 0px;
+        margin: 0px;
+        min-width: 150px;
+    }
+
+    QComboBox QAbstractItemView, QComboBox QFrame {
+        background-color: #D4D4D4;
+        color: #686868;
+        selection-background-color: #E9E9E9;
+        border: 1px solid: #BDBDBD;
+        margin: 0px;
+        outline: none;
+    }
+"""

@@ -36,7 +36,8 @@ class TableClass(QAbstractTableModel):
         return self._data
 
 class TableEditableClass(QAbstractTableModel):
-    def __init__(self, data):
+    def __init__(self, data, *columns):
+        self.columns = columns
         self._data = data
         self.dado = {}
         super().__init__()    
@@ -64,17 +65,24 @@ class TableEditableClass(QAbstractTableModel):
         return None
     
     def flags(self, index):
-        if index.column() == 6 or index.column() == 7:
-            return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
-        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        if self.columns:
+            for i in self.columns:
+                if index.column() == i:
+                    return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
     
     def setData(self, index, value, role =Qt.EditRole):
             if role == Qt.EditRole:
                 self.row = index.row()
                 self.col = index.column()
-                if value:
+                if value and isinstance(value, int) or value.isdigit():
                     self._data[0][self.row][self.col] = value
                     self.dado[self._data[1][self.col].lower()] = int(self._data[0][self.row][self.col])
+                    self.dataChanged.emit(index, index, [Qt.DisplayRole])
+                else:
+                    self._data[0][self.row][self.col] = value
+                    self.dado[self._data[1][self.col].lower()] = self._data[0][self.row][self.col]
                     self.dataChanged.emit(index, index, [Qt.DisplayRole])
                     return True
                 return False

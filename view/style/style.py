@@ -115,7 +115,7 @@ estilo_menu_suspenso = """
         font-size: 13px;
         font-family: Arial, sans-serif;
         color: #909090;
-        border: 5px solid #BDBDBD;
+        border: 0px solid #BDBDBD;
         border-radius: 0px;
         padding: 0px;
         margin: 0px;

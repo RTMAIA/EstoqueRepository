@@ -115,7 +115,7 @@ class ProdutoService(GenericService):
         def __init__(self, repo_produto, categoria_service):
             self.campos_permitidos = ['nome', 'marca', 'categoria', 'valor_unitario']
             self.categoria_service = categoria_service
-            self.campos = ['ID', 'NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO']
+            self.campos = ['ID', 'NOME', 'MARCA', 'CATEGORIA', 'SKU', 'VALOR_UNITARIO']
             super().__init__(repo_produto)
 
         def _gerar_sku(self, **kwargs):
@@ -157,11 +157,14 @@ class ProdutoService(GenericService):
             resultado = ResultadoBusca(dados=obj, campos=self.campos)
             return resultado
         
+        #criar funcao para buscar por nome
+
         def buscar_por_id(self, id):
               obj = self.repo.session.scalars(select(Produtos).where(id == Produtos.id).filter(Produtos.is_active == True)).all()
               if not obj:
                    raise ValueError('O produto não existe ou está inativo.')
-              return obj
+              resultado = ResultadoBusca(dados=obj, campos=self.campos)
+              return resultado
 
         def filtrar(self, **kwargs):
             obj = super().filtrar(Produtos, **kwargs)
@@ -173,12 +176,12 @@ class ProdutoService(GenericService):
                 dados_validados = self._validate_update(**kwargs)
                 obj = self.buscar_por_id(id)
                 for i in dados_validados:
-                    setattr(obj[0], i, dados_validados[i])
-                dados_sku = {'nome': obj[0].nome, 'marca': obj[0].marca, 'id_categoria': obj[0].categoria.nome}
+                    setattr(obj.dados[0], i, dados_validados[i])
+                dados_sku = {'nome': obj.dados[0].nome, 'marca': obj.dados[0].marca, 'categoria': obj.dados[0].categoria.nome}
                 dados_chave = set({'nome', 'marca', 'id_categoria'})
                 if dados_chave.intersection(dados_validados.keys()):
                     sku = self._gerar_sku(**dados_sku)
-                    obj[0].sku = sku
+                    obj.dados[0].sku = sku
                     self.repo.session.commit()
                 return obj
             except Exception as e:
@@ -187,16 +190,16 @@ class ProdutoService(GenericService):
 
         def delete(self, id):
             obj = self.buscar_por_id(id)
-            obj[0].is_active = False
+            obj.dados[0].is_active = False
             self.repo.session.commit()
-            return f'Produto {obj[0].nome} Apagado com sucesso.'
+            return f'Produto {obj.dados[0].nome} Apagado com sucesso.'
 
 class EstoqueService(GenericService):
     def __init__(self, repo, produto_service, movimentacao_service):
         self.campos_permitidos = ['id_produto', 'quantidade', 'estoque_minimo']
         self.produto_service = produto_service
         self.movimentacao_service = movimentacao_service
-        self.campos = ['ID', 'NOME', 'CATEGORIA', 'MARCA', 'SKU', 'VALOR_UNITARIO', 'QUANTIDADE', 'ESTOQUE_MINIMO', 'VALOR_TOTAL']
+        self.campos = ['ID', 'NOME', 'MARCA', 'CATEGORIA', 'SKU', 'VALOR_UNITARIO', 'QUANTIDADE', 'ESTOQUE_MINIMO', 'VALOR_TOTAL']
         super().__init__(repo)
 
     def _validate_create(self, **kwargs):

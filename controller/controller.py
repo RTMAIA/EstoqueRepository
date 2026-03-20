@@ -47,14 +47,19 @@ class ProdutosController:
     def criar(self, **kwargs):
         self.produto_service.criar(**kwargs)
 
-    def update(self, **kwargs):
-        self.produto_service.update(**kwargs)
+    def atualizar(self, id, **kwargs):
+        self.produto_service.update(id, **kwargs)
 
-    def delete(self, **kwargs):
-        self.produto_service.delete(**kwargs)
+    def delete(self, id):
+        self.produto_service.delete(id)
 
     def buscar_todos(self):
         obj = self.produto_service.buscar_todos()
+        dados_convertidos = self._converter_obj(obj)
+        return dados_convertidos
+    
+    def buscar_por_id(self, id):
+        obj = self.produto_service.buscar_por_id(id)
         dados_convertidos = self._converter_obj(obj)
         return dados_convertidos
     
@@ -69,7 +74,7 @@ class EstoqueController:
 
     def _converter_obj(self, obj):
         dados_convertidos = [[[i.id, i.produto.nome,
-                              i.produto.categoria.nome, i.produto.marca, i.produto.sku,
+                              i.produto.marca, i.produto.categoria.nome, i.produto.sku,
                               str(i.produto.valor_unitario), i.quantidade, i.estoque_minimo, str(i.produto.valor_unitario * i.quantidade)] for i in obj.dados]]
         dados_convertidos.append(obj.campos)
         return dados_convertidos

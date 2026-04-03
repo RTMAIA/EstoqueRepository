@@ -11,6 +11,16 @@ class NumDelegateOnly(QStyledItemDelegate):
         editor.setValidator(validator)
         return editor
 
+class DecimalDelegateOnly(QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        editor = QLineEdit(parent)
+
+        validator = QDoubleValidator(0, 999999.99, 2, editor)
+        validator.setLocale(QLocale("C"))
+        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+
+        editor.setValidator(validator)
+        return editor
 
 class StrDelegateOnly(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -21,6 +31,14 @@ class StrDelegateOnly(QStyledItemDelegate):
         
         editor.setValidator(validator)
         return editor
+
+class StrOnlyValidator(QStyledItemDelegate):
+    @classmethod
+    def validate(cls):
+        regex = QRegularExpression('^[a-zA-Z]*$')
+        validator = QRegularExpressionValidator(regex)
+        
+        return validator
     
 class IntValidation(QIntValidator):
 

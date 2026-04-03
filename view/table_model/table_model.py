@@ -1,9 +1,10 @@
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
+from decimal import Decimal
 
 class TableClass(QAbstractTableModel):
     def __init__(self, data):
         self._data = data
-        super().__init__()    
+        super().__init__()
 
     def rowCount(self, parent=QModelIndex()):
         return(len(self._data[0]))
@@ -36,7 +37,7 @@ class TableClass(QAbstractTableModel):
         return self._data
 
 class TableEditableClass(QAbstractTableModel):
-    def __init__(self, data, *columns):
+    def __init__(self, data, columns):
         self.columns = columns
         self._data = data
         self.dado = {}
@@ -76,10 +77,15 @@ class TableEditableClass(QAbstractTableModel):
             if role == Qt.EditRole:
                 self.row = index.row()
                 self.col = index.column()
-                if value and isinstance(value, int) or value.isdigit():
-                    self._data[0][self.row][self.col] = value
-                    self.dado[self._data[1][self.col].lower()] = int(self._data[0][self.row][self.col])
-                    self.dataChanged.emit(index, index, [Qt.DisplayRole])
+                if isinstance(value, int) or value.isdigit():
+                    if self._data[1][self.col].lower() ==  'valor_unitario':
+                        self._data[0][self.row][self.col] = value
+                        self.dado[self._data[1][self.col].lower()] = Decimal(self._data[0][self.row][self.col])
+                        self.dataChanged.emit(index, index, [Qt.DisplayRole])
+                    else:    
+                        self._data[0][self.row][self.col] = value
+                        self.dado[self._data[1][self.col].lower()] = int(self._data[0][self.row][self.col])
+                        self.dataChanged.emit(index, index, [Qt.DisplayRole])
                 else:
                     self._data[0][self.row][self.col] = value
                     self.dado[self._data[1][self.col].lower()] = self._data[0][self.row][self.col]

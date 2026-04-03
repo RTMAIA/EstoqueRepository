@@ -81,15 +81,16 @@ class CategoriaService(GenericService):
             return resultado
 
         def buscar_por_id(self, id):
-            return super().buscar_por_id(id)
+            obj = super().buscar_por_id(id)
+            resultado = ResultadoBusca(dados=obj, campos=self.campo)
+            return resultado
 
         def buscar_por_nome(self, **kwargs):
              id = self.retornar_id(**kwargs)
              obj = self.buscar_por_id(id)
-             resultado = ResultadoBusca(dados=obj, campos=self.campo)
-             return resultado
+             return obj
         
-        def update(self, id, **kwargs):
+        def atualizar(self, id, **kwargs):
             obj = self.repo.session.scalar(select(Categorias).where(kwargs['nome'] == Categorias.nome))
             if not obj:
                 return super().update(id, **kwargs)
@@ -168,7 +169,7 @@ class ProdutoService(GenericService):
 
         def filtrar(self, **kwargs):
             obj = super().filtrar(Produtos, **kwargs)
-            resultado = ResultadoBusca(dados=obj, filtros=kwargs)
+            resultado = ResultadoBusca(dados=obj, filtros=kwargs, campos=self.campos)
             return resultado
 
         def update(self, id, **kwargs):
@@ -178,7 +179,7 @@ class ProdutoService(GenericService):
                 for i in dados_validados:
                     setattr(obj.dados[0], i, dados_validados[i])
                 dados_sku = {'nome': obj.dados[0].nome, 'marca': obj.dados[0].marca, 'categoria': obj.dados[0].categoria.nome}
-                dados_chave = set({'nome', 'marca', 'id_categoria'})
+                dados_chave = set({'nome', 'marca', 'id_categoria', 'valor_unitario'})
                 if dados_chave.intersection(dados_validados.keys()):
                     sku = self._gerar_sku(**dados_sku)
                     obj.dados[0].sku = sku
@@ -192,7 +193,7 @@ class ProdutoService(GenericService):
             obj = self.buscar_por_id(id)
             obj.dados[0].is_active = False
             self.repo.session.commit()
-            return f'Produto {obj.dados[0].nome} Apagado com sucesso.'
+            return f'Produto "{obj.dados[0].nome.upper()}" Apagado com sucesso.'
 
 class EstoqueService(GenericService):
     def __init__(self, repo, produto_service, movimentacao_service):
@@ -291,6 +292,8 @@ class EstoqueService(GenericService):
 class MovimentacaoService(GenericService):
     def __init__(self, repo):
         self.repo = repo
+        self.campos = ['DATA', 'TIPO_MOVIMENTACAO', 'ORIGEM', 'NOME', 'MARCA', 'CATEGORIA', 'SKU', 'VALOR_UNITARIO', 'QUANTIDADE', 'VALOR_TOTAL']
+
 
     def _payload_registro(self, tipo_movimentacao, origem, quantidade, obj_estoque):
         payload = {
@@ -378,11 +381,12 @@ class MovimentacaoService(GenericService):
     
     def buscar_todos(self):
         dados = super().buscar_todos()
-        return dados
+        resultado = ResultadoBusca(dados, campos=self.campos)
+        return resultado
     
     def filtrar(self, **kwargs):
         intervalos = ['ano_inicial', 'ano_final', 'mes_inicial', 'mes_final', 'dia_inicial', 'dia_final']
-        caracteristicas = ['nome', 'categoria', 'marca', 'sku', 'valor_unitario','tipo_movimentacao', 'origem']           
+        caracteristicas = ['nome', 'categoria', 'marca', 'sku', 'valor_unitario', 'quantidade', 'tipo_movimentacao', 'origem']           
         datas = ['ano', 'mes','dia']
 
         campos = intervalos + caracteristicas + datas
@@ -407,7 +411,7 @@ class MovimentacaoService(GenericService):
             query_base = self._query_intervalo(query_base, filtros['intervalos'])
 
         dados = self.repo.session.scalars(query_base).all()
-        resultado = ResultadoBusca(dados=dados, filtros=kwargs)
+        resultado = ResultadoBusca(dados=dados, filtros=kwargs, campos=self.campos)
         return resultado
 
 class RelatorioService:

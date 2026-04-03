@@ -5,18 +5,19 @@ class CategoriasController:
         self.categoria_services = categoria_service
 
     def _converter_obj(self, obj):
-        dados_convertidos = [[i.nome for i in obj.dados]]
+        dados_convertidos = [[[i.id, i.nome] for i in obj.dados]]
         dados_convertidos.append(obj.campos)
         return dados_convertidos
 
     def criar(self, **kwargs):
         self.categoria_services.criar(**kwargs)
 
-    def update(self, **kwargs):
+    def atualizar(self, **kwargs):
         self.categoria_services.update(**kwargs)
 
     def delete(self, id):
-        self.categoria_services.delete(id)
+        msg = self.categoria_services.delete(id)
+        return msg
     
     def buscar_todos(self):
         obj = self.categoria_services.buscar_todos()
@@ -31,6 +32,11 @@ class CategoriasController:
     def retornar_id(self, nome):
         categoria_id = self.categoria_services.retornar_id(nome=nome)
         return categoria_id
+
+    def buscar_por_id(self, id):
+        obj = self.categoria_services.buscar_por_id(id)
+        dados_convertidos = self._converter_obj(obj)
+        return dados_convertidos
 
 class ProdutosController:
     def __init__(self, produto_service):
@@ -49,10 +55,10 @@ class ProdutosController:
 
     def atualizar(self, id, **kwargs):
         self.produto_service.update(id, **kwargs)
-
+        
     def delete(self, id):
-        self.produto_service.delete(id)
-
+        msg = self.produto_service.delete(id)
+        return msg
     def buscar_todos(self):
         obj = self.produto_service.buscar_todos()
         dados_convertidos = self._converter_obj(obj)
@@ -107,7 +113,7 @@ class EstoqueController:
         info = self.estoque_service.delete(id)
         return info
 
-class movimentacaoController:
+class MovimentacaoController:
     def __init__(self, movimentacao_service):
         self.movimentacao_service = movimentacao_service
 

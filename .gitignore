@@ -9,4 +9,4 @@ env/
 
 .vscode/
 .idea//
-gestao_de_estoque.db
+*.db

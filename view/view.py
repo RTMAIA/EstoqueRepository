@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow,
                                 QHeaderView, QLineEdit,
                                 QPushButton, QGridLayout,
                                 QAbstractItemView, QDialog,
-                                QMessageBox, QComboBox, QScrollArea)
+                                QMessageBox, QComboBox)
 from PySide6.QtCore import Qt
 from view.table_model.table_model import TableClass, TableEditableClass
 from view.instancias import instances
@@ -348,7 +348,7 @@ class TelaPrincipal(QMainWindow):
 
     def tela_tabela_generica(self, controller, nome_tela, funcao_atualizar, colunas=None, delegates=None):
         if self.dados_id:
-            self.id = self.dados_id['id_produto']
+            self.id = self.dados_id['id']
             self.dados_tabela_generica = controller.buscar_por_id(self.id)
 
             self.tela_ajustar = QDialog()
@@ -494,6 +494,9 @@ class SubMenuEstoqueAdicionarProduto(QFrame):
             if self.tela_principal.dados_id:
                 self.tela_concluir_produto_estoque()
                 if len(self.tela_principal.dados_id) == 3:
+                    dados = self.tela_principal.dados_id
+                    dados['id_produto'] = dados['id']
+                    dados.pop('id')
                     self.tela_principal.estoque_controller.adicionar_produto_estoque(**self.tela_principal.dados_id)
                     dados_novos = self.tela_principal.estoque_controller.buscar_todos()
                     self.tela_principal.tabela_model.atualizar_dados_model(dados_novos)
@@ -1075,7 +1078,7 @@ class SubMenuMovimentacaoBuscarTodos(QFrame):
             dados = self.tela_principal.movimentacao_controller.filtrar(**parametros)
             self.tabela_model.atualizar_dados_model(dados)
         except Exception as e:
-            self.tela_principalmsg('Error', e, 'warning')
+            self.tela_principal.msg('Error', e, 'warning')
         finally:
             nome = self.nome.clear()
             categoria = self.categoria.clear() 

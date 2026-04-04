@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import (QApplication, QMainWindow,
+from PySide6.QtWidgets import (QMainWindow,
                                 QFrame, QLabel, QTableView,
                                 QVBoxLayout, QHBoxLayout,
                                 QHeaderView, QLineEdit,
@@ -7,14 +7,9 @@ from PySide6.QtWidgets import (QApplication, QMainWindow,
                                 QMessageBox, QComboBox)
 from PySide6.QtCore import Qt
 from view.table_model.table_model import TableClass, TableEditableClass
-from view.instancias import instances
 from view.style import style
 from view.validators_view.validators_view import NumDelegateOnly, StrDelegateOnly, IntValidation, DecimalValidation, StrOnlyValidator
 from decimal import Decimal
-import sys
-
-app = QApplication(sys.argv)
-app.setStyle('Fusion')
 
 class TelaPrincipal(QMainWindow):
     def __init__(self, estoque_controller, produto_controller, categoria_controller, movimentacao_controller, relatorio_controller):
@@ -1110,8 +1105,3 @@ class SubMenuMovimentacaoBuscarTodos(QFrame):
             self.tela_principal.msg('Sucess', 'Relatório criado com sucesso!', 'information')
         except Exception as e:
             self.tela_principal.msg('Error', e, 'warning')
-
-a = TelaPrincipal(instances.estoque_controller, instances.produto_controller, instances.categoria_controller, instances.movimentacao_controller, instances.relatorio_controller)
-
-a.show()
-sys.exit(app.exec())

@@ -7,9 +7,13 @@ class TableClass(QAbstractTableModel):
         super().__init__()
 
     def rowCount(self, parent=QModelIndex()):
+        if not self._data[0]:
+            return 0
         return(len(self._data[0]))
     
     def columnCount(self, parent=QModelIndex()):
+        if not self._data[0]:
+            return 0
         return(len(self._data[0][0]))
 
     def data(self, index, role=Qt.DisplayRole):
@@ -44,9 +48,13 @@ class TableEditableClass(QAbstractTableModel):
         super().__init__()    
 
     def rowCount(self, parent=QModelIndex()):
+        if not self._data[0]:
+            return 0
         return(len(self._data[0]))
     
     def columnCount(self, parent=QModelIndex()):
+        if not self._data[0]:
+            return 0
         return(len(self._data[0][0]))
 
     def data(self, index, role=Qt.DisplayRole):

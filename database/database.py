@@ -2,8 +2,18 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy import create_engine
 from model.model import Base
 import os
+import sys
 
-DATABASE_URL = 'sqlite:///gestao_de_estoque.db'
+
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+folder_data = os.path.join(BASE_DIR, 'data')
+os.makedirs(folder_data, exist_ok=True)
+
+DATABASE_URL = f'sqlite:///{os.path.join(folder_data, "gestao_de_estoque.db")}'
 
 
 engine = create_engine(DATABASE_URL, echo=True)

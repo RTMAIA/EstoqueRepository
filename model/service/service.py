@@ -9,6 +9,8 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from datetime import datetime
 from database.context.context import *
+from database.database import folder_data
+import os
 
 
 class GenericService():
@@ -433,11 +435,17 @@ class RelatorioService:
                                     ('FONTSIZE', (0, 0), (-1, -1), 5),]))
 
     def gerar_relatorio_pdf(self, obj):
+
         _ = ResultadoBusca(obj.dados, obj.filtros)
+        nome = _._gerar_nome()
+
+        relatorio = os.path.join(folder_data, 'relatorios')
+        os.makedirs(relatorio, exist_ok=True)
+        arquivo_dir_nome = os.path.join(relatorio, nome)
+
         obj_conv = self.movimentacao_service._converte_obj_para_dict(obj.dados)
         tabela_dados = self._dataframe_to_list(obj_conv)
-        nome = _._gerar_nome()
-        pdf = SimpleDocTemplate(nome, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=20, BottomMargin=20)
+        pdf = SimpleDocTemplate(arquivo_dir_nome, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=20, BottomMargin=20)
         conteudo = []
         style = getSampleStyleSheet()
         titulo_style = style['Title']
@@ -460,7 +468,8 @@ class ResultadoBusca:
     def _gerar_nome(self):
         timestamp = int(datetime.now().timestamp())
         data = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
-        nome = f'relatorios/Relatorio_{data}'
+
+        nome = f'Relatorio_{data}'
 
         if not self.filtros:
             return f'{nome}_GERAL-{data}_{timestamp}.pdf'

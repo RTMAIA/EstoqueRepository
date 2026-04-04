@@ -9,4 +9,9 @@ env/
 
 .vscode/
 .idea//
+
 *.db
+
+build/
+dist/
+*.spec

@@ -129,12 +129,12 @@ class MovimentacaoController:
     def buscar_todos(self):
         obj = self.movimentacao_service.buscar_todos()
         dados_convertidos = self._converter_obj(obj)
-        return dados_convertidos
+        return dados_convertidos, obj
     
     def filtrar(self, **kwargs):
         obj = self.movimentacao_service.filtrar(**kwargs)
         dados_convertidos = self._converter_obj(obj)
-        return dados_convertidos
+        return dados_convertidos, obj
 
 class RelatorioController:
     def __init__(self, relatorio_service):

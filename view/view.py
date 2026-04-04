@@ -542,7 +542,7 @@ class SubMenuEstoqueRemoverProduto(QFrame):
         try:
             if not self.tela_principal.tela_confirmacao():
                 return
-            self.id = self.tela_principal.dados_id['id_produto']
+            self.id = self.tela_principal.dados_id['id']
             self.info = self.tela_principal.estoque_controller.delete(self.id)
             novos_dados = self.tela_principal.estoque_controller.buscar_todos()
             self.tela_principal.tabela_model.atualizar_dados_model(novos_dados)
@@ -912,6 +912,7 @@ class SubMenuMovimentacaoBuscarTodos(QFrame):
     def __init__(self, tela_principal):
         self.tela_principal = tela_principal
         self.dados_movimentacao = self.tela_principal.movimentacao_controller.buscar_todos()
+        self.chamada_filtrar = False
         super().__init__()
 
         self.setMinimumSize(1600, 900)
@@ -1010,7 +1011,7 @@ class SubMenuMovimentacaoBuscarTodos(QFrame):
         frame_interno_moldura_tabela.setContentsMargins(0, 0, 0, 0)
         frame_interno_moldura_tabela.setStyleSheet(style.cor_fundo) 
 
-        self.tabela_model = TableClass(self.dados_movimentacao)
+        self.tabela_model = TableClass(self.dados_movimentacao[0])
         tabela = self.tela_principal.criar_tabela(self.tabela_model, pegar_dado=False)
         grid_tabela_layout = QGridLayout(tabela)
         grid_tabela_layout.setContentsMargins(0, 0, 0, 0)
@@ -1061,7 +1062,7 @@ class SubMenuMovimentacaoBuscarTodos(QFrame):
         if valor_unitario:
             valor_unitario = Decimal(valor_unitario)
 
-        parametros = {'nome': nome, 'categoria': categoria, 'marca': marca,
+        self.parametros = {'nome': nome, 'categoria': categoria, 'marca': marca,
                     'sku': sku, 'valor_unitario': valor_unitario, 'quantidade': quantidade,
                     'tipo_movimentacao': tipo_movimentacao, 'origem': origem,
                     'ano_inicial': ano_inicial, 'ano_final': ano_final,
@@ -1069,14 +1070,14 @@ class SubMenuMovimentacaoBuscarTodos(QFrame):
                     'dia_inicial': dia_inicial, 'dia_final': dia_final,
                     'ano': ano, 'mes': mes, 'dia': dia}
         
-        parametros_temp = parametros.copy()
+        self.parametros_temp = self.parametros.copy()
         
-        for i in parametros_temp:
-            if not parametros_temp[i]:
-                parametros.pop(i)
+        for i in self.parametros_temp:
+            if not self.parametros_temp[i]:
+                self.parametros.pop(i)
         try:
-            dados = self.tela_principal.movimentacao_controller.filtrar(**parametros)
-            self.tabela_model.atualizar_dados_model(dados)
+            self.dados = self.tela_principal.movimentacao_controller.filtrar(**self.parametros)
+            self.tabela_model.atualizar_dados_model(self.dados[0])
         except Exception as e:
             self.tela_principal.msg('Error', e, 'warning')
         finally:
@@ -1097,10 +1098,18 @@ class SubMenuMovimentacaoBuscarTodos(QFrame):
             ano = self.ano.clear()
             mes = self.mes.clear()
             dia = self.dia.clear()
-            parametros.clear()
+            self.parametros.clear()
+            self.chamada_filtrar = True
 
-    def gerar_relatorio():
-        ...
+    def gerar_relatorio(self):
+        try:
+            if self.chamada_filtrar:
+                self.tela_principal.relatorio_controller.gerar_relatorio_pdf(self.dados[1])
+            else:
+                self.tela_principal.relatorio_controller.gerar_relatorio_pdf(self.dados_movimentacao[1])
+            self.tela_principal.msg('Sucess', 'Relatório criado com sucesso!', 'information')
+        except Exception as e:
+            self.tela_principal.msg('Error', e, 'warning')
 
 a = TelaPrincipal(instances.estoque_controller, instances.produto_controller, instances.categoria_controller, instances.movimentacao_controller, instances.relatorio_controller)
 

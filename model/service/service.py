@@ -9,9 +9,8 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from datetime import datetime
 from database.context.context import *
-from database.database import folder_data
+from database.database import BASE_DIR
 import os
-
 
 class GenericService():
     def __init__(self, repo):

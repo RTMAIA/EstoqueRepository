@@ -6,20 +6,19 @@ import sys
 
 
 if getattr(sys, 'frozen', False):
-    BASE_DIR = os.path.dirname(sys.executable)
+    BASE_DIR = os.path.join(os.path.dirname(sys.executable), 'data')
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-folder_data = os.path.join(BASE_DIR, 'data')
-os.makedirs(folder_data, exist_ok=True)
+os.makedirs(BASE_DIR, exist_ok=True)
 
-DATABASE_URL = f'sqlite:///{os.path.join(folder_data, "gestao_de_estoque.db")}'
+DATABASE_URL = f'sqlite:///{os.path.join(BASE_DIR, "gestao_de_estoque.db")}'
 
 
 engine = create_engine(DATABASE_URL, echo=True)
 
-if not os.path.exists('gestao_de_estoque.db'):
-    Base.metadata.create_all(engine)
+# if not os.path.exists('gestao_de_estoque.db'):
+Base.metadata.create_all(engine)
 
 session = sessionmaker(bind=engine)
 

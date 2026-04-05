@@ -4,7 +4,8 @@ from PySide6.QtWidgets import (QMainWindow,
                                 QHeaderView, QLineEdit,
                                 QPushButton, QGridLayout,
                                 QAbstractItemView, QDialog,
-                                QMessageBox, QComboBox)
+                                QMessageBox, QComboBox,)
+from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
 from view.table_model.table_model import TableClass, TableEditableClass
 from view.style import style
@@ -22,7 +23,8 @@ class TelaPrincipal(QMainWindow):
         self.dados_tabela_generica = self.estoque_controller.buscar_todos()
         self.dados_id = {}
         super().__init__()
-
+        
+        self.setWindowIcon(QIcon())
         self.setWindowTitle('Estoque — Buscar Todos')
 
         self.barra_estoque = self.barra_menu('Estoque')

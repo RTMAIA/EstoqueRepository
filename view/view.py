@@ -606,7 +606,7 @@ class SubMenuProdutoCriarProduto(QFrame):
             if not self.campo_nome.text() and not self.campo_marca.text() and not self.campo_valor_unitario.text() and not self.menu_suspenso_categoria.currentText():
                 raise NameError('Os campos não podem estar vazios.')
 
-            self.dado = {'nome': self.campo_nome.text(), 'marca': self.campo_marca.text(), 'valor_unitario': Decimal(self.campo_valor_unitario.text()), 'categoria': self.menu_suspenso_categoria.currentText().lower()}
+            self.dado = {'nome': self.campo_nome.text(), 'marca': self.campo_marca.text(), 'valor_unitario': Decimal(self.campo_valor_unitario.text()), 'categoria': self.menu_suspenso_categoria.currentText()}
             self.tela_principal.produto_controller.criar(**self.dado)
             self.tela_principal.msg('Success', f'Produto {self.campo_nome.text().upper()} criado com sucesso!', 'information')
 

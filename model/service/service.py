@@ -438,7 +438,7 @@ class RelatorioService:
         _ = ResultadoBusca(obj.dados, obj.filtros)
         nome = _._gerar_nome()
 
-        relatorio = os.path.join(folder_data, 'relatorios')
+        relatorio = os.path.join(BASE_DIR, 'relatorios')
         os.makedirs(relatorio, exist_ok=True)
         arquivo_dir_nome = os.path.join(relatorio, nome)
 

@@ -11,6 +11,7 @@ else:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 os.makedirs(BASE_DIR, exist_ok=True)
 
 DATABASE_URL = f'sqlite:///{os.path.join(BASE_DIR, "gestao_de_estoque.db")}'
@@ -18,6 +19,12 @@ DATABASE_URL = f'sqlite:///{os.path.join(BASE_DIR, "gestao_de_estoque.db")}'
 DATABASE_URL = f'sqlite:///{os.path.join(BASE_DIR, "gestao_de_estoque.db")}'
 os.makedirs(BASE_DIR, exist_ok=True)
 
+>>>>>>> Stashed changes
+=======
+
+os.makedirs(BASE_DIR, exist_ok=True)
+
+DATABASE_URL = f'sqlite:///{os.path.join(BASE_DIR, "gestao_de_estoque.db")}'
 >>>>>>> Stashed changes
 
 

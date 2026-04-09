@@ -10,27 +10,20 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 os.makedirs(BASE_DIR, exist_ok=True)
 
 DATABASE_URL = f'sqlite:///{os.path.join(BASE_DIR, "gestao_de_estoque.db")}'
-=======
+
 DATABASE_URL = f'sqlite:///{os.path.join(BASE_DIR, "gestao_de_estoque.db")}'
 os.makedirs(BASE_DIR, exist_ok=True)
-
->>>>>>> Stashed changes
-=======
 
 os.makedirs(BASE_DIR, exist_ok=True)
 
 DATABASE_URL = f'sqlite:///{os.path.join(BASE_DIR, "gestao_de_estoque.db")}'
->>>>>>> Stashed changes
-
 
 engine = create_engine(DATABASE_URL, echo=True)
 
-# if not os.path.exists('gestao_de_estoque.db'):
+
 Base.metadata.create_all(engine)
 
 session = sessionmaker(bind=engine)
